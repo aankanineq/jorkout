@@ -23,7 +23,7 @@ export default async function CalendarPage() {
     lift: a.liftSession
       ? {
         splitLabel: a.liftSession.splitDay.dayLabel,
-        modules: a.lift?.splitDay.modules.map((m: any) => m.moduleCode) || [],
+        modules: a.liftSession.splitDay.modules.map((m: any) => m.moduleCode) || [],
       }
       : null,
     run: a.runSession
