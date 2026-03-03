@@ -16,22 +16,22 @@ export default async function CalendarPage() {
     },
   })
 
-  const data = activities.map((a) => ({
+  const data = activities.map((a: any) => ({
     id: a.id,
     date: a.date.toISOString(),
     type: a.type as 'LIFT' | 'RUN',
     lift: a.liftSession
       ? {
-          splitLabel: a.liftSession.splitDay.dayLabel,
-          modules: a.liftSession.splitDay.modules.map((m) => m.moduleCode),
-        }
+        splitLabel: a.liftSession.splitDay.dayLabel,
+        modules: a.lift?.splitDay.modules.map((m: any) => m.moduleCode) || [],
+      }
       : null,
     run: a.runSession
       ? {
-          distanceKm: a.runSession.distanceKm,
-          avgPace: a.runSession.avgPace,
-          runType: a.runSession.runType,
-        }
+        distanceKm: a.runSession.distanceKm,
+        avgPace: a.runSession.avgPace,
+        runType: a.runSession.runType,
+      }
       : null,
   }))
 
