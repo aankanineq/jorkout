@@ -103,7 +103,7 @@ export default async function RunPage() {
   const thisWeekKm = thisWeekRuns.reduce((sum, r) => sum + r.distanceKm, 0)
 
   // Find current week in plan
-  const currentWeek = race?.runPlan?.weeks.find((w) => {
+  const currentWeek = race?.runPlan?.weeks.find((w: any) => {
     const wStart = new Date(w.startDate)
     const wEnd = new Date(wStart)
     wEnd.setDate(wStart.getDate() + 7)
@@ -189,7 +189,7 @@ export default async function RunPage() {
         {recentRuns.length > 0 ? (
           <div className="space-y-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">최근 러닝</h2>
-            {recentRuns.map((run) => (
+            {recentRuns.map((run: any) => (
               <div key={run.id} className="rounded-xl bg-zinc-50 px-5 py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">

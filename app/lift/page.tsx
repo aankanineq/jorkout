@@ -54,7 +54,7 @@ export default async function LiftPage() {
             </div>
 
             <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cycle.splitCount}, 1fr)` }}>
-              {cycle.splits.map((split) => (
+              {cycle.splits.map((split: any) => (
                 <form key={split.id} action={startSession.bind(null, split.id)}>
                   <button
                     type="submit"
@@ -65,7 +65,7 @@ export default async function LiftPage() {
                       <span className="text-xs text-zinc-400">{split._count.sessions}회</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {split.modules.map((mod) => (
+                      {split.modules.map((mod: any) => (
                         <span
                           key={mod.id}
                           className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium"

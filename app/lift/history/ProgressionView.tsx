@@ -37,7 +37,7 @@ function formatDate(iso: string): string {
 export default function ProgressionView({ exercises }: { exercises: ExerciseData[] }) {
   const [selected, setSelected] = useState(exercises[0]?.id ?? '')
 
-  const exercise = exercises.find((e) => e.id === selected)
+  const exercise = exercises.find((e: any) => e.id === selected)
 
   return (
     <div className="space-y-6">
@@ -45,15 +45,14 @@ export default function ProgressionView({ exercises }: { exercises: ExerciseData
 
       {/* Exercise selector */}
       <div className="flex gap-2 flex-wrap">
-        {exercises.map((ex) => (
+        {exercises.map((ex: any) => (
           <button
             key={ex.id}
             onClick={() => setSelected(ex.id)}
-            className={`text-sm px-3 py-1.5 rounded-full font-medium transition-colors ${
-              selected === ex.id
+            className={`text-sm px-3 py-1.5 rounded-full font-medium transition-colors ${selected === ex.id
                 ? 'bg-indigo-600 text-white'
                 : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-            }`}
+              }`}
           >
             {ex.name}
           </button>
@@ -70,7 +69,7 @@ export default function ProgressionView({ exercises }: { exercises: ExerciseData
           <div className="space-y-1">
             <p className="text-xs font-medium text-zinc-500 mb-2">최고 중량 추이</p>
             {(() => {
-              const maxWeight = Math.max(...exercise.logs.map((l) => l.topWeight))
+              const maxWeight = Math.max(...exercise.logs.map((l: any) => l.topWeight))
               return exercise.logs.map((log, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <span className="text-xs text-zinc-400 w-14 shrink-0">{formatDate(log.date)}</span>

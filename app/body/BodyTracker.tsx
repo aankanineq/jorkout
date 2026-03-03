@@ -42,7 +42,7 @@ export default function BodyTracker({
   }
 
   // Simple trend: compare latest to 7 days ago
-  const weightLogs = recentLogs.filter((l) => l.weight != null)
+  const weightLogs = recentLogs.filter((l: any) => l.weight != null)
   const latestWeight = weightLogs[0]?.weight
   const weekAgoWeight = weightLogs.length >= 7 ? weightLogs[6]?.weight : null
   const weightDelta = latestWeight != null && weekAgoWeight != null ? latestWeight - weekAgoWeight : null

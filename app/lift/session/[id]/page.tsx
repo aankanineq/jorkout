@@ -29,7 +29,7 @@ export default async function SessionPage({
 
   if (!session) notFound()
 
-  const moduleCodes = session.splitDay.modules.map((m) => m.moduleCode)
+  const moduleCodes = session.splitDay.modules.map((m: any) => m.moduleCode)
 
   const exercises = await prisma.exercise.findMany({
     where: { moduleCode: { in: moduleCodes } },
@@ -60,7 +60,7 @@ export default async function SessionPage({
   }
 
   // Fetch previous session data for each exercise in the available pool
-  const exerciseIds = exercises.map((e) => e.id)
+  const exerciseIds = exercises.map((e: any) => e.id)
   const previousLogs = await prisma.exerciseLog.findMany({
     where: {
       exerciseId: { in: exerciseIds },
@@ -78,7 +78,7 @@ export default async function SessionPage({
 
   const previousData: Record<string, { weight: number; reps: number; rpe: number | null }[]> = {}
   previousLogs.forEach((log) => {
-    previousData[log.exerciseId] = log.sets.map((s) => ({
+    previousData[log.exerciseId] = log.sets.map((s: any) => ({
       weight: s.weight,
       reps: s.reps,
       rpe: s.rpe,
@@ -93,15 +93,15 @@ export default async function SessionPage({
             id: session.id,
             date: session.date.toISOString(),
             splitLabel: session.splitDay.dayLabel,
-            modules: session.splitDay.modules.map((m) => m.moduleCode),
-            exerciseLogs: session.exerciseLogs.map((log) => ({
+            modules: session.splitDay.modules.map((m: any) => m.moduleCode),
+            exerciseLogs: session.exerciseLogs.map((log: any) => ({
               id: log.id,
               exerciseId: log.exerciseId,
               exerciseName: log.exercise.name,
               moduleCode: log.moduleCode,
               isMain: log.exercise.isMain,
               order: log.order,
-              sets: log.sets.map((s) => ({
+              sets: log.sets.map((s: any) => ({
                 id: s.id,
                 setNumber: s.setNumber,
                 weight: s.weight,
@@ -111,7 +111,7 @@ export default async function SessionPage({
               })),
             })),
           }}
-          exercises={exercises.map((e) => ({
+          exercises={exercises.map((e: any) => ({
             id: e.id,
             name: e.name,
             moduleCode: e.moduleCode,

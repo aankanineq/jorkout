@@ -10,7 +10,7 @@ export default async function ExercisesPage() {
 
   const grouped = MODULE_ORDER.map((code) => ({
     moduleCode: code,
-    exercises: exercises.filter((e) => e.moduleCode === code),
+    exercises: exercises.filter((e: any) => e.moduleCode === code),
   }))
 
   return <ExerciseList grouped={grouped} />

@@ -9,7 +9,7 @@ export default async function LiftHistoryPage() {
 
   const logs = await prisma.exerciseLog.findMany({
     where: {
-      exerciseId: { in: mainExercises.map((e) => e.id) },
+      exerciseId: { in: mainExercises.map((e: any) => e.id) },
     },
     orderBy: { createdAt: 'asc' },
     include: {
@@ -23,20 +23,20 @@ export default async function LiftHistoryPage() {
   })
 
   // Group by exercise
-  const grouped = mainExercises.map((ex) => {
+  const grouped = mainExercises.map((ex: any) => {
     const exLogs = logs
-      .filter((l) => l.exerciseId === ex.id)
-      .map((l) => {
+      .filter((l: any) => l.exerciseId === ex.id)
+      .map((l: any) => {
         const workingSets = l.sets
-        const topWeight = workingSets.length > 0 ? Math.max(...workingSets.map((s) => s.weight)) : 0
-        const totalVolume = workingSets.reduce((sum, s) => sum + s.weight * s.reps, 0)
-        const avgRpe = workingSets.filter((s) => s.rpe != null).length > 0
-          ? workingSets.filter((s) => s.rpe != null).reduce((sum, s) => sum + s.rpe!, 0) / workingSets.filter((s) => s.rpe != null).length
+        const topWeight = workingSets.length > 0 ? Math.max(...workingSets.map((s: any) => s.weight)) : 0
+        const totalVolume = workingSets.reduce((sum: number, s: any) => sum + s.weight * s.reps, 0)
+        const avgRpe = workingSets.filter((s: any) => s.rpe != null).length > 0
+          ? workingSets.filter((s: any) => s.rpe != null).reduce((sum: number, s: any) => sum + s.rpe!, 0) / workingSets.filter((s: any) => s.rpe != null).length
           : null
 
         // Check if all working sets hit target reps (>=8) at RPE <=8 → suggest weight increase
         const allSetsHitTarget = workingSets.length >= 3 &&
-          workingSets.every((s) => s.reps >= 8) &&
+          workingSets.every((s: any) => s.reps >= 8) &&
           (avgRpe === null || avgRpe <= 8)
 
         return {
@@ -44,7 +44,7 @@ export default async function LiftHistoryPage() {
           topWeight,
           totalVolume,
           avgRpe: avgRpe ? Math.round(avgRpe * 10) / 10 : null,
-          sets: workingSets.map((s) => ({
+          sets: workingSets.map((s: any) => ({
             weight: s.weight,
             reps: s.reps,
             rpe: s.rpe,

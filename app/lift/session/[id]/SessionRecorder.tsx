@@ -75,13 +75,13 @@ export default function SessionRecorder({
     day: 'numeric',
   })
 
-  const usedExerciseIds = new Set(session.exerciseLogs.map((l) => l.exerciseId))
+  const usedExerciseIds = new Set(session.exerciseLogs.map((l: any) => l.exerciseId))
   const filteredExercises = exercises.filter(
     (e) => e.moduleCode === selectedModule && !usedExerciseIds.has(e.id),
   )
 
   function handleAddExercise(exerciseId: string) {
-    const exercise = exercises.find((e) => e.id === exerciseId)
+    const exercise = exercises.find((e: any) => e.id === exerciseId)
     if (!exercise) return
     startTransition(async () => {
       await addExerciseLog(session.id, exerciseId, exercise.moduleCode)
@@ -125,13 +125,13 @@ export default function SessionRecorder({
       <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-4 space-y-3">
         <h3 className="text-sm font-medium text-zinc-500">운동 추가</h3>
         <div className="flex gap-2 flex-wrap">
-          {session.modules.map((mod) => (
+          {session.modules.map((mod: any) => (
             <button
               key={mod}
               onClick={() => setSelectedModule(mod)}
               className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${selectedModule === mod
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
                 }`}
             >
               {MODULE_LABEL[mod]}
@@ -140,7 +140,7 @@ export default function SessionRecorder({
         </div>
         {filteredExercises.length > 0 ? (
           <div className="flex gap-2 flex-wrap">
-            {filteredExercises.map((ex) => (
+            {filteredExercises.map((ex: any) => (
               <button
                 key={ex.id}
                 disabled={isPending}
@@ -164,7 +164,7 @@ export default function SessionRecorder({
       </div>
 
       {/* Exercise logs */}
-      {session.exerciseLogs.map((log) => (
+      {session.exerciseLogs.map((log: any) => (
         <ExerciseCard
           key={log.id}
           log={log}
@@ -219,7 +219,7 @@ function ExerciseCard({
   }
 
   const nextSetNumber = log.sets.length > 0
-    ? Math.max(...log.sets.map((s) => s.setNumber)) + 1
+    ? Math.max(...log.sets.map((s: any) => s.setNumber)) + 1
     : 1
 
   return (
@@ -274,7 +274,7 @@ function ExerciseCard({
               </tr>
             </thead>
             <tbody>
-              {log.sets.map((set) => (
+              {log.sets.map((set: any) => (
                 <SetRow
                   key={set.id}
                   set={set}

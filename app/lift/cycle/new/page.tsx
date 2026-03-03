@@ -29,7 +29,7 @@ export default function NewCyclePage() {
       prev.map((modules, i) => {
         if (i !== splitIndex) return modules
         return modules.includes(mod)
-          ? modules.filter((m) => m !== mod)
+          ? modules.filter((m: any) => m !== mod)
           : [...modules, mod]
       }),
     )
@@ -62,15 +62,14 @@ export default function NewCyclePage() {
         <div className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">분할 수</h2>
           <div className="flex gap-3">
-            {[2, 3, 4].map((n) => (
+            {[2, 3, 4].map((n: any) => (
               <button
                 key={n}
                 onClick={() => handleSplitCount(n)}
-                className={`px-6 py-3 rounded-xl text-lg font-semibold transition-colors ${
-                  splitCount === n
+                className={`px-6 py-3 rounded-xl text-lg font-semibold transition-colors ${splitCount === n
                     ? 'bg-indigo-600 text-white'
                     : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-                }`}
+                  }`}
               >
                 {n}분할
               </button>
@@ -86,17 +85,16 @@ export default function NewCyclePage() {
               <div key={splitIdx} className="rounded-xl bg-zinc-50 border border-zinc-200 px-5 py-4 space-y-3">
                 <h3 className="text-sm font-semibold text-zinc-900">Split {DAY_LABELS[splitIdx]}</h3>
                 <div className="flex flex-wrap gap-2">
-                  {MODULE_CODES.map((mod) => {
+                  {MODULE_CODES.map((mod: any) => {
                     const active = modules.includes(mod)
                     return (
                       <button
                         key={mod}
                         onClick={() => toggleModule(splitIdx, mod)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                          active
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${active
                             ? 'bg-indigo-600 text-white'
                             : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
-                        }`}
+                          }`}
                       >
                         {MODULE_LABEL[mod]}
                       </button>

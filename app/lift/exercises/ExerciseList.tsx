@@ -122,16 +122,15 @@ export default function ExerciseList({ grouped }: { grouped: GroupedExercises[] 
               <div className="space-y-1">
                 <label className="text-sm font-medium text-zinc-600">모듈</label>
                 <div className="flex flex-wrap gap-2">
-                  {MODULE_CODES.map((code) => (
+                  {MODULE_CODES.map((code: any) => (
                     <button
                       key={code}
                       type="button"
                       onClick={() => setForm({ ...form, moduleCode: code })}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        form.moduleCode === code
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.moduleCode === code
                           ? 'bg-indigo-600 text-white'
                           : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-                      }`}
+                        }`}
                     >
                       {MODULE_LABEL[code]}
                     </button>
@@ -184,7 +183,7 @@ export default function ExerciseList({ grouped }: { grouped: GroupedExercises[] 
         )}
 
         {/* 운동 목록 (모듈별) */}
-        {grouped.map((group) => (
+        {grouped.map((group: any) => (
           <div key={group.moduleCode} className="space-y-2">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
@@ -199,7 +198,7 @@ export default function ExerciseList({ grouped }: { grouped: GroupedExercises[] 
             </div>
             {group.exercises.length > 0 ? (
               <div className="space-y-1">
-                {group.exercises.map((ex) => (
+                {group.exercises.map((ex: any) => (
                   <div
                     key={ex.id}
                     className="flex items-center justify-between rounded-lg bg-zinc-50 px-4 py-3 group"

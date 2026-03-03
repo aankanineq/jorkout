@@ -114,7 +114,7 @@ export default async function Home() {
   // Next split suggestion: find the split with fewest sessions, or round-robin
   const nextSplit = cycle?.splits.reduce((min, split) =>
     split._count.sessions < min._count.sessions ? split : min
-  , cycle.splits[0])
+    , cycle.splits[0])
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 px-4 py-10">
@@ -173,7 +173,7 @@ export default async function Home() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-zinc-900">Split {nextSplit.dayLabel}</span>
                 <div className="flex gap-1">
-                  {nextSplit.modules.map((mod) => (
+                  {nextSplit.modules.map((mod: any) => (
                     <span key={mod.id} className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">
                       {MODULE_LABEL[mod.moduleCode]}
                     </span>
@@ -197,14 +197,14 @@ export default async function Home() {
               리프팅 사이클 #{cycle.number} · {cycle.splitCount}분할
             </h2>
             <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cycle.splitCount}, 1fr)` }}>
-              {cycle.splits.map((split) => (
+              {cycle.splits.map((split: any) => (
                 <div key={split.id} className="rounded-xl bg-zinc-50 px-4 py-4 border border-zinc-200">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-semibold text-zinc-900">Split {split.dayLabel}</span>
                     <span className="text-xs text-zinc-400">{split._count.sessions}회</span>
                   </div>
                   <div className="space-y-1">
-                    {split.modules.map((mod) => (
+                    {split.modules.map((mod: any) => (
                       <span
                         key={mod.id}
                         className="inline-block mr-1.5 text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium"
@@ -226,7 +226,7 @@ export default async function Home() {
               <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">최근 리프팅</h2>
               <Link href="/lift/history" className="text-xs text-indigo-600 hover:text-indigo-500">프로그레션 →</Link>
             </div>
-            {recentLifts.map((session) => (
+            {recentLifts.map((session: any) => (
               <div key={session.id} className="rounded-xl bg-zinc-50 px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -240,7 +240,7 @@ export default async function Home() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  {session.exerciseLogs.map((log) => (
+                  {session.exerciseLogs.map((log: any) => (
                     <div key={log.id} className="flex items-start justify-between text-sm">
                       <div className="flex items-center gap-2">
                         {log.exercise.isMain && (
@@ -249,7 +249,7 @@ export default async function Home() {
                         <span className="text-zinc-600">{log.exercise.name}</span>
                       </div>
                       <div className="flex gap-1 text-xs text-zinc-500">
-                        {log.sets.filter(s => !s.isWarmup).map((set) => (
+                        {log.sets.filter((s: any) => !s.isWarmup).map((set: any) => (
                           <span key={set.id} className="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
                             {set.weight}×{set.reps}
                             {set.rpe && <span className="text-zinc-400"> @{set.rpe}</span>}
@@ -268,7 +268,7 @@ export default async function Home() {
         {recentRuns.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">최근 러닝</h2>
-            {recentRuns.map((run) => (
+            {recentRuns.map((run: any) => (
               <div key={run.id} className="rounded-xl bg-zinc-50 px-5 py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">

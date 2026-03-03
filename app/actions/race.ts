@@ -86,7 +86,7 @@ export async function createRace(data: {
         raceId: race.id,
         name: `${data.name} 플랜`,
         weeks: {
-          create: weeklyPlan.map((w) => ({
+          create: weeklyPlan.map((w: any) => ({
             weekNumber: w.weekNumber,
             startDate: new Date(today.getTime() + (w.weekNumber - 1) * msPerWeek),
             targetKm: w.targetKm,

@@ -113,16 +113,15 @@ export default function RunLogPage() {
           <div className="space-y-2">
             <label className="text-sm font-medium text-zinc-600">타입</label>
             <div className="flex flex-wrap gap-2">
-              {RUN_TYPES.map((t) => (
+              {RUN_TYPES.map((t: any) => (
                 <button
                   key={t.value}
                   type="button"
                   onClick={() => setRunType(t.value)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    runType === t.value
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${runType === t.value
                       ? `${RUN_TYPE_COLOR[t.value]} text-white`
                       : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-                  }`}
+                    }`}
                 >
                   {t.label}
                 </button>
