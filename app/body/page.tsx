@@ -9,7 +9,7 @@ export default async function BodyPage() {
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const todayLog = logs.find((l) => new Date(l.date).toISOString().slice(0, 10) === today.toISOString().slice(0, 10))
+  const todayLog = logs.find((l: any) => new Date(l.date).toISOString().slice(0, 10) === today.toISOString().slice(0, 10))
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 px-4 py-10">

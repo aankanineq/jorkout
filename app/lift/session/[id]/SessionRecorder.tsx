@@ -58,6 +58,7 @@ export default function SessionRecorder({
   session,
   exercises,
   previousData = {},
+  runLoadWarning,
 }: {
   session: SessionData
   exercises: ExerciseOption[]
@@ -128,11 +129,10 @@ export default function SessionRecorder({
             <button
               key={mod}
               onClick={() => setSelectedModule(mod)}
-              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
-                selectedModule === mod
+              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${selectedModule === mod
                   ? 'bg-indigo-600 text-white'
                   : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-              }`}
+                }`}
             >
               {MODULE_LABEL[mod]}
             </button>
