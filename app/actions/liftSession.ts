@@ -1,13 +1,27 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { SplitType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-export async function startSession(splitDayId: string) {
-  const splitDay = await prisma.splitDay.findUniqueOrThrow({
-    where: { id: splitDayId },
-    include: { cycle: true },
+const SPLIT_ORDER: SplitType[] = ['PUSH', 'PULL', 'LEG']
+
+export async function getNextSplitType(): Promise<SplitType> {
+  const lastSession = await prisma.liftSession.findFirst({
+    orderBy: { date: 'desc' },
+  })
+
+  if (!lastSession) return 'PUSH'
+
+  const idx = SPLIT_ORDER.indexOf(lastSession.splitType)
+  return SPLIT_ORDER[(idx + 1) % SPLIT_ORDER.length]
+}
+
+export async function startSession(splitType: SplitType) {
+  const exercises = await prisma.exercise.findMany({
+    where: { splitType },
+    orderBy: { order: 'asc' },
   })
 
   const activity = await prisma.activity.create({
@@ -16,9 +30,14 @@ export async function startSession(splitDayId: string) {
       type: 'LIFT',
       liftSession: {
         create: {
-          cycleId: splitDay.cycleId,
-          splitDayId,
+          splitType,
           date: new Date(),
+          exerciseLogs: {
+            create: exercises.map((ex, i) => ({
+              exerciseId: ex.id,
+              order: i,
+            })),
+          },
         },
       },
     },
@@ -28,28 +47,6 @@ export async function startSession(splitDayId: string) {
   redirect(`/lift/session/${activity.liftSession!.id}`)
 }
 
-export async function addExerciseLog(
-  sessionId: string,
-  exerciseId: string,
-  moduleCode: string,
-) {
-  const maxOrder = await prisma.exerciseLog.aggregate({
-    where: { sessionId },
-    _max: { order: true },
-  })
-
-  await prisma.exerciseLog.create({
-    data: {
-      sessionId,
-      exerciseId,
-      moduleCode: moduleCode as any,
-      order: (maxOrder._max.order ?? -1) + 1,
-    },
-  })
-
-  revalidatePath(`/lift/session/${sessionId}`)
-}
-
 export async function saveSet(
   exerciseLogId: string,
   data: {
@@ -57,8 +54,6 @@ export async function saveSet(
     setNumber: number
     weight: number
     reps: number
-    rpe?: number | null
-    isWarmup?: boolean
   },
 ) {
   if (data.setId) {
@@ -67,8 +62,6 @@ export async function saveSet(
       data: {
         weight: data.weight,
         reps: data.reps,
-        rpe: data.rpe,
-        isWarmup: data.isWarmup ?? false,
       },
     })
   } else {
@@ -78,8 +71,6 @@ export async function saveSet(
         setNumber: data.setNumber,
         weight: data.weight,
         reps: data.reps,
-        rpe: data.rpe,
-        isWarmup: data.isWarmup ?? false,
       },
     })
   }
@@ -107,4 +98,15 @@ export async function deleteExerciseLog(exerciseLogId: string) {
 
   await prisma.exerciseLog.delete({ where: { id: exerciseLogId } })
   revalidatePath(`/lift/session/${log.sessionId}`)
+}
+
+export async function deleteSession(sessionId: string) {
+  const session = await prisma.liftSession.findUniqueOrThrow({
+    where: { id: sessionId },
+  })
+
+  await prisma.liftSession.delete({ where: { id: sessionId } })
+  await prisma.activity.delete({ where: { id: session.activityId } })
+
+  revalidatePath('/lift')
 }

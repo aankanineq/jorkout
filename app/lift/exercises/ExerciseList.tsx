@@ -3,53 +3,70 @@
 import { useState } from 'react'
 import { createExercise, updateExercise, deleteExercise } from '@/app/actions/exercise'
 
-const MODULE_CODES = ['SQ', 'HN', 'PU', 'VU', 'PL', 'RL'] as const
-const MODULE_LABEL: Record<string, string> = {
-  SQ: '스쿼트',
-  HN: '힙힌지',
-  PU: '수평푸시',
-  VU: '수직푸시',
-  PL: '수직풀',
-  RL: '수평풀',
+const SPLIT_TYPES = ['PUSH', 'PULL', 'LEG'] as const
+const SPLIT_LABEL: Record<string, string> = {
+  PUSH: '푸시',
+  PULL: '풀',
+  LEG: '레그',
+}
+const ROLE_TYPES = ['MAIN', 'VOLUME'] as const
+const ROLE_LABEL: Record<string, string> = {
+  MAIN: '메인',
+  VOLUME: '볼륨',
 }
 
 type Exercise = {
   id: string
   name: string
-  moduleCode: string
-  isMain: boolean
+  splitType: string
+  role: string
+  targetSets: number
+  targetMinReps: number
+  targetMaxReps: number
+  order: number
   notes: string | null
 }
 
 type GroupedExercises = {
-  moduleCode: string
+  splitType: string
   exercises: Exercise[]
 }
 
 type FormState = {
   id?: string
   name: string
-  moduleCode: string
-  isMain: boolean
+  splitType: string
+  role: string
+  targetSets: number
+  targetMinReps: number
+  targetMaxReps: number
+  order: number
   notes: string
 }
 
-const EMPTY_FORM: FormState = { name: '', moduleCode: 'SQ', isMain: false, notes: '' }
+const EMPTY_FORM: FormState = {
+  name: '', splitType: 'PUSH', role: 'MAIN',
+  targetSets: 2, targetMinReps: 5, targetMaxReps: 8, order: 0, notes: '',
+}
 
 export default function ExerciseList({ grouped }: { grouped: GroupedExercises[] }) {
   const [form, setForm] = useState<FormState | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  function openNew(moduleCode?: string) {
-    setForm({ ...EMPTY_FORM, moduleCode: moduleCode ?? 'SQ' })
+  function openNew(splitType?: string) {
+    setForm({ ...EMPTY_FORM, splitType: splitType ?? 'PUSH' })
   }
 
   function openEdit(ex: Exercise) {
     setForm({
       id: ex.id,
       name: ex.name,
-      moduleCode: ex.moduleCode,
-      isMain: ex.isMain,
+      splitType: ex.splitType,
+      role: ex.role,
+      targetSets: ex.targetSets,
+      targetMinReps: ex.targetMinReps,
+      targetMaxReps: ex.targetMaxReps,
+      order: ex.order,
       notes: ex.notes ?? '',
     })
   }
@@ -61,8 +78,12 @@ export default function ExerciseList({ grouped }: { grouped: GroupedExercises[] 
 
     const data = {
       name: form.name.trim(),
-      moduleCode: form.moduleCode,
-      isMain: form.isMain,
+      splitType: form.splitType,
+      role: form.role,
+      targetSets: form.targetSets,
+      targetMinReps: form.targetMinReps,
+      targetMaxReps: form.targetMaxReps,
+      order: form.order,
       notes: form.notes.trim() || undefined,
     }
 
@@ -118,36 +139,93 @@ export default function ExerciseList({ grouped }: { grouped: GroupedExercises[] 
                 />
               </div>
 
-              {/* 모듈 */}
+              {/* 분할 */}
               <div className="space-y-1">
-                <label className="text-sm font-medium text-zinc-600">모듈</label>
+                <label className="text-sm font-medium text-zinc-600">분할</label>
                 <div className="flex flex-wrap gap-2">
-                  {MODULE_CODES.map((code: any) => (
+                  {SPLIT_TYPES.map((code: any) => (
                     <button
                       key={code}
                       type="button"
-                      onClick={() => setForm({ ...form, moduleCode: code })}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.moduleCode === code
+                      onClick={() => setForm({ ...form, splitType: code })}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.splitType === code
                           ? 'bg-indigo-600 text-white'
                           : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
                         }`}
                     >
-                      {MODULE_LABEL[code]}
+                      {SPLIT_LABEL[code]}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* 메인 여부 */}
-              <label className="flex items-center gap-2 cursor-pointer">
+              {/* 역할 */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-zinc-600">역할</label>
+                <div className="flex flex-wrap gap-2">
+                  {ROLE_TYPES.map((role: any) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setForm({
+                        ...form,
+                        role,
+                        targetSets: role === 'MAIN' ? 2 : 2,
+                        targetMinReps: role === 'MAIN' ? 5 : 8,
+                        targetMaxReps: role === 'MAIN' ? 8 : 12,
+                      })}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.role === role
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
+                        }`}
+                    >
+                      {ROLE_LABEL[role]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 세트/렙 */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-zinc-600">세트</label>
+                  <input
+                    type="number"
+                    value={form.targetSets}
+                    onChange={(e) => setForm({ ...form, targetSets: parseInt(e.target.value) || 0 })}
+                    className="w-full rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2.5 text-zinc-900 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-zinc-600">최소렙</label>
+                  <input
+                    type="number"
+                    value={form.targetMinReps}
+                    onChange={(e) => setForm({ ...form, targetMinReps: parseInt(e.target.value) || 0 })}
+                    className="w-full rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2.5 text-zinc-900 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-zinc-600">최대렙</label>
+                  <input
+                    type="number"
+                    value={form.targetMaxReps}
+                    onChange={(e) => setForm({ ...form, targetMaxReps: parseInt(e.target.value) || 0 })}
+                    className="w-full rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2.5 text-zinc-900 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* 순서 */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-zinc-600">순서</label>
                 <input
-                  type="checkbox"
-                  checked={form.isMain}
-                  onChange={(e) => setForm({ ...form, isMain: e.target.checked })}
-                  className="rounded bg-zinc-50 border-zinc-300 text-indigo-500 focus:ring-indigo-500"
+                  type="number"
+                  value={form.order}
+                  onChange={(e) => setForm({ ...form, order: parseInt(e.target.value) || 0 })}
+                  className="w-full rounded-lg bg-zinc-50 border border-zinc-200 px-4 py-2.5 text-zinc-900 focus:outline-none focus:border-indigo-500"
                 />
-                <span className="text-sm text-zinc-600">메인 리프트</span>
-              </label>
+              </div>
 
               {/* 메모 */}
               <div className="space-y-1">
@@ -182,15 +260,15 @@ export default function ExerciseList({ grouped }: { grouped: GroupedExercises[] 
           </div>
         )}
 
-        {/* 운동 목록 (모듈별) */}
+        {/* 운동 목록 (분할별) */}
         {grouped.map((group: any) => (
-          <div key={group.moduleCode} className="space-y-2">
+          <div key={group.splitType} className="space-y-2">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                {MODULE_LABEL[group.moduleCode]}
+                {SPLIT_LABEL[group.splitType]}
               </h2>
               <button
-                onClick={() => openNew(group.moduleCode)}
+                onClick={() => openNew(group.splitType)}
                 className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
               >
                 + 추가
@@ -204,13 +282,13 @@ export default function ExerciseList({ grouped }: { grouped: GroupedExercises[] 
                     className="flex items-center justify-between rounded-lg bg-zinc-50 px-4 py-3 group"
                   >
                     <div className="flex items-center gap-2">
-                      {ex.isMain && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                      )}
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${ex.role === 'MAIN' ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
+                        {ROLE_LABEL[ex.role]}
+                      </span>
                       <span className="text-sm text-zinc-700">{ex.name}</span>
-                      {ex.notes && (
-                        <span className="text-xs text-zinc-400">{ex.notes}</span>
-                      )}
+                      <span className="text-xs text-zinc-400">
+                        {ex.targetSets}×{ex.targetMinReps}-{ex.targetMaxReps}
+                      </span>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button

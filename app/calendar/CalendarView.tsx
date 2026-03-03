@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 
-const MODULE_LABEL: Record<string, string> = {
-  SQ: '스쿼트', HN: '힙힌지', PU: '수평푸시',
-  VU: '수직푸시', PL: '수직풀', RL: '수평풀',
+const SPLIT_LABEL: Record<string, string> = {
+  PUSH: '푸시', PULL: '풀', LEG: '레그',
 }
 
 const RUN_TYPE_LABEL: Record<string, string> = {
@@ -17,17 +16,11 @@ type ActivityData = {
   id: string
   date: string
   type: 'LIFT' | 'RUN'
-  lift: { splitLabel: string; modules: string[] } | null
+  lift: { splitType: string } | null
   run: { distanceKm: number; avgPace: number; runType: string } | null
 }
 
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일']
-
-function formatPace(sec: number) {
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  return `${m}'${s.toString().padStart(2, '0')}"`
-}
 
 export default function CalendarView({ activities }: { activities: ActivityData[] }) {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -119,7 +112,7 @@ export default function CalendarView({ activities }: { activities: ActivityData[
                         }`}
                     >
                       {a.type === 'LIFT' && a.lift
-                        ? `${a.lift.modules.map((m) => MODULE_LABEL[m]?.slice(0, 2)).join('/')}`
+                        ? SPLIT_LABEL[a.lift.splitType]
                         : a.run
                           ? `${a.run.distanceKm.toFixed(1)}km ${RUN_TYPE_LABEL[a.run.runType]}`
                           : ''}

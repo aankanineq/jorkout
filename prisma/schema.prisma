@@ -29,91 +29,46 @@ enum ActivityType {
 }
 
 // ============================================
-// 헬스 - 모듈 시스템
+// 헬스 - PPL 3분할
 // ============================================
 
-enum ModuleCode {
-  SQ // 스쿼트
-  HN // 힙힌지
-  PU // 수평푸시
-  VU // 수직푸시
-  PL // 수직풀
-  RL // 수평풀
+enum SplitType {
+  PUSH
+  PULL
+  LEG
+}
+
+enum ExerciseRole {
+  MAIN
+  VOLUME
 }
 
 model Exercise {
-  id         String     @id @default(cuid())
-  name       String
-  moduleCode ModuleCode
-  isMain     Boolean    @default(false)
-  notes      String?
+  id            String       @id @default(cuid())
+  name          String       @unique
+  splitType     SplitType
+  role          ExerciseRole
+  targetSets    Int
+  targetMinReps Int
+  targetMaxReps Int
+  order         Int
+  notes         String?
 
   exerciseLogs ExerciseLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@unique([name, moduleCode])
-}
-
-model LiftCycle {
-  id         String      @id @default(cuid())
-  number     Int
-  splitCount Int
-  status     CycleStatus @default(ACTIVE)
-  startDate  DateTime    @db.Date
-  endDate    DateTime?   @db.Date
-
-  splits   SplitDay[]
-  sessions LiftSession[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-enum CycleStatus {
-  ACTIVE
-  COMPLETED
-}
-
-model SplitDay {
-  id       String @id @default(cuid())
-  cycleId  String
-  dayLabel String
-  order    Int
-
-  cycle    LiftCycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  modules  SplitModule[]
-  sessions LiftSession[]
-
-  createdAt DateTime @default(now())
-
-  @@unique([cycleId, dayLabel])
-}
-
-model SplitModule {
-  id         String     @id @default(cuid())
-  splitDayId String
-  moduleCode ModuleCode
-  order      Int
-
-  splitDay SplitDay @relation(fields: [splitDayId], references: [id], onDelete: Cascade)
-
-  @@unique([splitDayId, moduleCode])
 }
 
 model LiftSession {
-  id         String   @id @default(cuid())
-  activityId String   @unique
-  cycleId    String
-  splitDayId String
-  date       DateTime @db.Date
+  id         String    @id @default(cuid())
+  activityId String    @unique
+  splitType  SplitType
+  date       DateTime  @db.Date
   duration   Int?
   notes      String?
 
   activity     Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  cycle        LiftCycle     @relation(fields: [cycleId], references: [id])
-  splitDay     SplitDay      @relation(fields: [splitDayId], references: [id])
   exerciseLogs ExerciseLog[]
 
   createdAt DateTime @default(now())
@@ -121,10 +76,9 @@ model LiftSession {
 }
 
 model ExerciseLog {
-  id         String     @id @default(cuid())
+  id         String @id @default(cuid())
   sessionId  String
   exerciseId String
-  moduleCode ModuleCode
   order      Int
   notes      String?
 
@@ -143,7 +97,6 @@ model ExerciseSet {
   setNumber     Int
   weight        Float
   reps          Int
-  rpe           Float?
   isWarmup      Boolean @default(false)
   notes         String?
 

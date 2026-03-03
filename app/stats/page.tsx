@@ -5,7 +5,7 @@ import StatsView from './StatsView'
 export default async function StatsPage() {
   const [mainExerciseLogs, runSessions, bodyLogs] = await Promise.all([
     prisma.exerciseLog.findMany({
-      where: { exercise: { isMain: true } },
+      where: { exercise: { role: 'MAIN' } },
       orderBy: { createdAt: 'asc' },
       include: {
         exercise: true,

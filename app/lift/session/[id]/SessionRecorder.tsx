@@ -1,21 +1,22 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useEffect, useCallback, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  addExerciseLog,
-  saveSet,
-  deleteSet,
-  deleteExerciseLog,
-} from '@/app/actions/liftSession'
+import { saveSet } from '@/app/actions/liftSession'
 
-const MODULE_LABEL: Record<string, string> = {
-  SQ: '스쿼트',
-  HN: '힙힌지',
-  PU: '수평푸시',
-  VU: '수직푸시',
-  PL: '수직풀',
-  RL: '수평풀',
+const ROLE_LABEL: Record<string, string> = {
+  MAIN: '메인',
+  VOLUME: '볼륨',
+}
+
+const ROLE_COLOR: Record<string, string> = {
+  MAIN: 'bg-amber-100 text-amber-700',
+  VOLUME: 'bg-sky-100 text-sky-700',
+}
+
+const REST_SECONDS: Record<string, number> = {
+  MAIN: 180,   // 3분
+  VOLUME: 120, // 2분
 }
 
 type SetData = {
@@ -23,7 +24,6 @@ type SetData = {
   setNumber: number
   weight: number
   reps: number
-  rpe: number | null
   isWarmup: boolean
 }
 
@@ -31,8 +31,10 @@ type ExerciseLogData = {
   id: string
   exerciseId: string
   exerciseName: string
-  moduleCode: string
-  isMain: boolean
+  role: string
+  targetSets: number
+  targetMinReps: number
+  targetMaxReps: number
   order: number
   sets: SetData[]
 }
@@ -40,34 +42,86 @@ type ExerciseLogData = {
 type SessionData = {
   id: string
   date: string
+  splitType: string
   splitLabel: string
-  modules: string[]
   exerciseLogs: ExerciseLogData[]
 }
 
-type ExerciseOption = {
-  id: string
-  name: string
-  moduleCode: string
-  isMain: boolean
+type PreviousSetData = { weight: number; reps: number }
+
+function formatTimer(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-type PreviousSetData = { weight: number; reps: number; rpe: number | null }
+function playAlarm() {
+  try {
+    const ctx = new AudioContext()
+    const playBeep = (time: number, freq: number, dur: number) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = freq
+      osc.type = 'sine'
+      gain.gain.setValueAtTime(0.3, time)
+      gain.gain.exponentialRampToValueAtTime(0.01, time + dur)
+      osc.start(time)
+      osc.stop(time + dur)
+    }
+    // 3-beep pattern
+    playBeep(ctx.currentTime, 880, 0.15)
+    playBeep(ctx.currentTime + 0.2, 880, 0.15)
+    playBeep(ctx.currentTime + 0.4, 1100, 0.3)
+  } catch {
+    // AudioContext not available
+  }
+}
 
 export default function SessionRecorder({
   session,
-  exercises,
   previousData = {},
-  runLoadWarning,
+  progressionInfo = {},
 }: {
   session: SessionData
-  exercises: ExerciseOption[]
   previousData?: Record<string, PreviousSetData[]>
-  runLoadWarning?: string | null
+  progressionInfo?: Record<string, boolean>
 }) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
-  const [selectedModule, setSelectedModule] = useState(session.modules[0] || '')
+  const [timerEnd, setTimerEnd] = useState<number | null>(null)
+  const [timerTotal, setTimerTotal] = useState(0)
+  const [remaining, setRemaining] = useState(0)
+  const alarmedRef = useRef(false)
+
+  useEffect(() => {
+    if (timerEnd === null) return
+    alarmedRef.current = false
+
+    const interval = setInterval(() => {
+      const left = Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000))
+      setRemaining(left)
+
+      if (left === 0 && !alarmedRef.current) {
+        alarmedRef.current = true
+        playAlarm()
+      }
+    }, 200)
+
+    return () => clearInterval(interval)
+  }, [timerEnd])
+
+  const startTimer = useCallback((role: string) => {
+    const duration = REST_SECONDS[role] ?? 120
+    setTimerTotal(duration)
+    setRemaining(duration)
+    setTimerEnd(Date.now() + duration * 1000)
+  }, [])
+
+  function dismissTimer() {
+    setTimerEnd(null)
+    setRemaining(0)
+  }
 
   const dateStr = new Date(session.date).toLocaleDateString('ko-KR', {
     year: 'numeric',
@@ -75,35 +129,16 @@ export default function SessionRecorder({
     day: 'numeric',
   })
 
-  const usedExerciseIds = new Set(session.exerciseLogs.map((l: any) => l.exerciseId))
-  const filteredExercises = exercises.filter(
-    (e) => e.moduleCode === selectedModule && !usedExerciseIds.has(e.id),
-  )
-
-  function handleAddExercise(exerciseId: string) {
-    const exercise = exercises.find((e: any) => e.id === exerciseId)
-    if (!exercise) return
-    startTransition(async () => {
-      await addExerciseLog(session.id, exerciseId, exercise.moduleCode)
-      router.refresh()
-    })
-  }
-
-  function handleDeleteLog(logId: string) {
-    startTransition(async () => {
-      await deleteExerciseLog(logId)
-      router.refresh()
-    })
-  }
+  const progress = timerTotal > 0 ? remaining / timerTotal : 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-zinc-900">세션 기록</h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {dateStr} · Split {session.splitLabel}
+            {dateStr} · {session.splitLabel}
           </p>
         </div>
         <button
@@ -114,69 +149,44 @@ export default function SessionRecorder({
         </button>
       </div>
 
-      {/* Running load warning */}
-      {runLoadWarning && (
-        <div className="rounded-xl bg-orange-50 border border-orange-200 px-4 py-3">
-          <p className="text-sm text-orange-700">{runLoadWarning}</p>
-        </div>
-      )}
-
-      {/* Add exercise */}
-      <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-4 space-y-3">
-        <h3 className="text-sm font-medium text-zinc-500">운동 추가</h3>
-        <div className="flex gap-2 flex-wrap">
-          {session.modules.map((mod: any) => (
-            <button
-              key={mod}
-              onClick={() => setSelectedModule(mod)}
-              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${selectedModule === mod
-                ? 'bg-indigo-600 text-white'
-                : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-                }`}
-            >
-              {MODULE_LABEL[mod]}
-            </button>
-          ))}
-        </div>
-        {filteredExercises.length > 0 ? (
-          <div className="flex gap-2 flex-wrap">
-            {filteredExercises.map((ex: any) => (
-              <button
-                key={ex.id}
-                disabled={isPending}
-                onClick={() => handleAddExercise(ex.id)}
-                className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 text-zinc-700 hover:bg-zinc-200 disabled:opacity-50 transition-colors"
-              >
-                {ex.name}
-                {ex.isMain && (
-                  <span className="ml-1 text-xs text-amber-500">★</span>
-                )}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-zinc-400">
-            {selectedModule
-              ? '추가할 운동이 없습니다'
-              : '모듈을 선택하세요'}
-          </p>
-        )}
-      </div>
-
       {/* Exercise logs */}
       {session.exerciseLogs.map((log: any) => (
         <ExerciseCard
           key={log.id}
           log={log}
-          sessionId={session.id}
-          onDelete={() => handleDeleteLog(log.id)}
           previousSets={previousData[log.exerciseId]}
+          canProgress={progressionInfo[log.exerciseId] ?? false}
+          onSetSaved={startTimer}
         />
       ))}
 
-      {session.exerciseLogs.length === 0 && (
-        <div className="rounded-xl bg-zinc-50 border border-zinc-200 px-6 py-12 text-center">
-          <p className="text-zinc-400">운동을 추가하세요</p>
+      {/* Rest timer — fixed bottom bar */}
+      {timerEnd !== null && (
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          {/* Progress bar background */}
+          <div className="relative bg-zinc-900">
+            <div
+              className={`absolute inset-y-0 left-0 transition-all duration-200 ${remaining === 0 ? 'bg-emerald-600' : 'bg-indigo-600/30'}`}
+              style={{ width: `${(1 - progress) * 100}%` }}
+            />
+            <div className="relative px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">쉬는 시간</span>
+                <span className={`text-2xl font-bold tabular-nums ${remaining === 0 ? 'text-emerald-400' : remaining <= 10 ? 'text-amber-400' : 'text-white'}`}>
+                  {formatTimer(remaining)}
+                </span>
+                {remaining === 0 && (
+                  <span className="text-sm text-emerald-400 font-medium">GO!</span>
+                )}
+              </div>
+              <button
+                onClick={dismissTimer}
+                className="text-sm px-3 py-1.5 rounded-lg bg-zinc-700 text-zinc-300 hover:bg-zinc-600 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -185,14 +195,14 @@ export default function SessionRecorder({
 
 function ExerciseCard({
   log,
-  sessionId,
-  onDelete,
   previousSets,
+  canProgress,
+  onSetSaved,
 }: {
   log: ExerciseLogData
-  sessionId: string
-  onDelete: () => void
   previousSets?: PreviousSetData[]
+  canProgress: boolean
+  onSetSaved: (role: string) => void
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -202,254 +212,171 @@ function ExerciseCard({
     setNumber: number
     weight: number
     reps: number
-    rpe?: number | null
-    isWarmup?: boolean
   }) {
     startTransition(async () => {
       await saveSet(log.id, data)
+      onSetSaved(log.role)
       router.refresh()
     })
   }
 
-  function handleDeleteSet(setId: string) {
-    startTransition(async () => {
-      await deleteSet(setId)
-      router.refresh()
-    })
-  }
-
-  const nextSetNumber = log.sets.length > 0
-    ? Math.max(...log.sets.map((s: any) => s.setNumber)) + 1
-    : 1
+  // Build fixed rows based on targetSets
+  const rows = Array.from({ length: log.targetSets }, (_, i) => {
+    const setNumber = i + 1
+    const existingSet = log.sets.find((s: any) => s.setNumber === setNumber)
+    const prevSet = previousSets?.[i]
+    const suggestedWeight = prevSet
+      ? canProgress ? prevSet.weight + 5 : prevSet.weight
+      : undefined
+    return { setNumber, existingSet, prevSet, suggestedWeight }
+  })
 
   return (
     <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-zinc-900">{log.exerciseName}</h3>
-          {log.isMain && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-              메인
-            </span>
-          )}
-          <span className="text-xs text-zinc-400">
-            {MODULE_LABEL[log.moduleCode]}
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-zinc-900">{log.exerciseName}</h3>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLOR[log.role]}`}>
+          {ROLE_LABEL[log.role]}
+        </span>
+        {canProgress && (
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">
+            +5kg
           </span>
-        </div>
-        <button
-          onClick={onDelete}
-          disabled={isPending}
-          className="text-xs text-zinc-400 hover:text-red-500 transition-colors disabled:opacity-50"
-        >
-          삭제
-        </button>
+        )}
       </div>
 
-      {/* Previous session reference */}
-      {previousSets && previousSets.length > 0 && log.sets.length === 0 && (
-        <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-          <p className="text-xs text-amber-600 mb-1">지난 세션</p>
-          <div className="flex gap-1.5 flex-wrap">
-            {previousSets.map((s, i) => (
-              <span key={i} className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">
-                {s.weight}×{s.reps}
-                {s.rpe && <span className="text-amber-500"> @{s.rpe}</span>}
-              </span>
-            ))}
-          </div>
+      {/* Sets grid */}
+      <div className="space-y-0">
+        {/* Column headers */}
+        <div className="grid grid-cols-[24px_1fr_1fr_auto] gap-2 text-xs text-zinc-400 pb-1.5 border-b border-zinc-200">
+          <span></span>
+          <span>지난 세션</span>
+          <span>이번 세션</span>
+          <span className="w-12"></span>
         </div>
-      )}
 
-      {/* Sets table */}
-      {log.sets.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-zinc-400 border-b border-zinc-200">
-                <th className="text-left py-1.5 w-8">#</th>
-                <th className="text-left py-1.5">kg</th>
-                <th className="text-left py-1.5">reps</th>
-                <th className="text-left py-1.5">RPE</th>
-                <th className="w-8"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {log.sets.map((set: any) => (
-                <SetRow
-                  key={set.id}
-                  set={set}
-                  onSave={handleSaveSet}
-                  onDelete={() => handleDeleteSet(set.id)}
-                  isPending={isPending}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Add set */}
-      <NewSetRow
-        setNumber={nextSetNumber}
-        onSave={handleSaveSet}
-        isPending={isPending}
-      />
+        {rows.map((row) => (
+          <FixedSetRow
+            key={row.setNumber}
+            setNumber={row.setNumber}
+            existingSet={row.existingSet}
+            prevSet={row.prevSet}
+            suggestedWeight={row.suggestedWeight}
+            targetMinReps={log.targetMinReps}
+            targetMaxReps={log.targetMaxReps}
+            onSave={handleSaveSet}
+            isPending={isPending}
+          />
+        ))}
+      </div>
     </div>
   )
 }
 
-function SetRow({
-  set,
-  onSave,
-  onDelete,
-  isPending,
-}: {
-  set: SetData
-  onSave: (data: {
-    setId: string
-    setNumber: number
-    weight: number
-    reps: number
-    rpe?: number | null
-  }) => void
-  onDelete: () => void
-  isPending: boolean
-}) {
-  const [weight, setWeight] = useState(String(set.weight))
-  const [reps, setReps] = useState(String(set.reps))
-  const [rpe, setRpe] = useState(set.rpe != null ? String(set.rpe) : '')
-
-  function handleBlur() {
-    const w = parseFloat(weight)
-    const r = parseInt(reps)
-    if (isNaN(w) || isNaN(r)) return
-    if (w === set.weight && r === set.reps && (rpe === '' ? null : parseFloat(rpe)) === set.rpe) return
-    onSave({
-      setId: set.id,
-      setNumber: set.setNumber,
-      weight: w,
-      reps: r,
-      rpe: rpe ? parseFloat(rpe) : null,
-    })
-  }
-
-  return (
-    <tr className="border-b border-zinc-200">
-      <td className="py-1.5 text-zinc-400">{set.setNumber}</td>
-      <td className="py-1.5">
-        <input
-          type="number"
-          value={weight}
-          onChange={(e) => setWeight(e.target.value)}
-          onBlur={handleBlur}
-          className="w-16 bg-white border border-zinc-200 rounded px-2 py-1 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-        />
-      </td>
-      <td className="py-1.5">
-        <input
-          type="number"
-          value={reps}
-          onChange={(e) => setReps(e.target.value)}
-          onBlur={handleBlur}
-          className="w-14 bg-white border border-zinc-200 rounded px-2 py-1 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-        />
-      </td>
-      <td className="py-1.5">
-        <input
-          type="number"
-          step="0.5"
-          value={rpe}
-          onChange={(e) => setRpe(e.target.value)}
-          onBlur={handleBlur}
-          placeholder="-"
-          className="w-14 bg-white border border-zinc-200 rounded px-2 py-1 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-        />
-      </td>
-      <td className="py-1.5 text-right">
-        <button
-          onClick={onDelete}
-          disabled={isPending}
-          className="text-zinc-400 hover:text-red-500 transition-colors disabled:opacity-50"
-        >
-          ✕
-        </button>
-      </td>
-    </tr>
-  )
-}
-
-function NewSetRow({
+function FixedSetRow({
   setNumber,
+  existingSet,
+  prevSet,
+  suggestedWeight,
+  targetMinReps,
+  targetMaxReps,
   onSave,
   isPending,
 }: {
   setNumber: number
+  existingSet?: SetData
+  prevSet?: PreviousSetData
+  suggestedWeight?: number
+  targetMinReps: number
+  targetMaxReps: number
   onSave: (data: {
+    setId?: string
     setNumber: number
     weight: number
     reps: number
-    rpe?: number | null
-    isWarmup?: boolean
   }) => void
   isPending: boolean
 }) {
-  const [weight, setWeight] = useState('')
-  const [reps, setReps] = useState('')
-  const [rpe, setRpe] = useState('')
+  const [weight, setWeight] = useState(
+    existingSet ? String(existingSet.weight) : suggestedWeight ? String(suggestedWeight) : '',
+  )
+  const [reps, setReps] = useState(existingSet ? String(existingSet.reps) : '')
+  const [saved, setSaved] = useState(!!existingSet)
 
-  function handleAdd() {
+  function handleDone() {
     const w = parseFloat(weight)
     const r = parseInt(reps)
     if (isNaN(w) || isNaN(r)) return
+
+    if (existingSet) {
+      if (w === existingSet.weight && r === existingSet.reps) return
+    }
+
     onSave({
+      setId: existingSet?.id,
       setNumber,
       weight: w,
       reps: r,
-      rpe: rpe ? parseFloat(rpe) : null,
     })
-    setWeight('')
-    setReps('')
-    setRpe('')
+    setSaved(true)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') handleAdd()
+    if (e.key === 'Enter') {
+      ;(e.target as HTMLInputElement).blur()
+      handleDone()
+    }
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-zinc-400 w-6">{setNumber}</span>
-      <input
-        type="number"
-        placeholder="kg"
-        value={weight}
-        onChange={(e) => setWeight(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-16 bg-white border border-zinc-200 rounded px-2 py-1.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-      />
-      <input
-        type="number"
-        placeholder="reps"
-        value={reps}
-        onChange={(e) => setReps(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-14 bg-white border border-zinc-200 rounded px-2 py-1.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-      />
-      <input
-        type="number"
-        step="0.5"
-        placeholder="RPE"
-        value={rpe}
-        onChange={(e) => setRpe(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-14 bg-white border border-zinc-200 rounded px-2 py-1.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-      />
+    <div className="grid grid-cols-[24px_1fr_1fr_auto] gap-2 items-center py-2 border-b border-zinc-100 last:border-b-0">
+      {/* Set number */}
+      <span className="text-xs font-medium text-zinc-400">{setNumber}</span>
+
+      {/* Previous set */}
+      <div className="text-sm text-zinc-400">
+        {prevSet ? (
+          <span>{prevSet.weight}kg × {prevSet.reps}</span>
+        ) : (
+          <span className="text-zinc-300">-</span>
+        )}
+      </div>
+
+      {/* Current inputs */}
+      <div className="flex items-center gap-1.5">
+        <input
+          type="number"
+          placeholder="kg"
+          value={weight}
+          onChange={(e) => { setWeight(e.target.value); setSaved(false) }}
+          onKeyDown={handleKeyDown}
+          disabled={isPending}
+          className="w-16 bg-white border border-zinc-200 rounded px-2 py-1.5 text-sm text-zinc-900 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+        />
+        <span className="text-zinc-300">×</span>
+        <input
+          type="number"
+          placeholder={`${targetMinReps}-${targetMaxReps}`}
+          value={reps}
+          onChange={(e) => { setReps(e.target.value); setSaved(false) }}
+          onKeyDown={handleKeyDown}
+          disabled={isPending}
+          className="w-14 bg-white border border-zinc-200 rounded px-2 py-1.5 text-sm text-zinc-900 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+        />
+      </div>
+
+      {/* Done button */}
       <button
-        onClick={handleAdd}
-        disabled={isPending || !weight || !reps}
-        className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"
+        onClick={handleDone}
+        disabled={isPending || !weight || !reps || saved}
+        className={`w-12 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+          saved
+            ? 'bg-emerald-100 text-emerald-600'
+            : 'bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-40'
+        }`}
       >
-        추가
+        {saved ? '✓' : '완료'}
       </button>
     </div>
   )

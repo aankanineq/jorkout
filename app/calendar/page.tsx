@@ -6,13 +6,7 @@ export default async function CalendarPage() {
   const activities = await prisma.activity.findMany({
     orderBy: { date: 'asc' },
     include: {
-      liftSession: {
-        include: {
-          splitDay: {
-            include: { modules: { orderBy: { order: 'asc' } } },
-          },
-        },
-      },
+      liftSession: true,
       runSession: true,
     },
   })
@@ -22,10 +16,7 @@ export default async function CalendarPage() {
     date: a.date.toISOString(),
     type: a.type as 'LIFT' | 'RUN',
     lift: a.liftSession
-      ? {
-        splitLabel: a.liftSession.splitDay.dayLabel,
-        modules: a.liftSession.splitDay.modules.map((m: any) => m.moduleCode) || [],
-      }
+      ? { splitType: a.liftSession.splitType }
       : null,
     run: a.runSession
       ? {

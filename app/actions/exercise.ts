@@ -5,15 +5,23 @@ import { revalidatePath } from 'next/cache'
 
 export async function createExercise(data: {
   name: string
-  moduleCode: string
-  isMain: boolean
+  splitType: string
+  role: string
+  targetSets: number
+  targetMinReps: number
+  targetMaxReps: number
+  order: number
   notes?: string
 }) {
   await prisma.exercise.create({
     data: {
       name: data.name,
-      moduleCode: data.moduleCode as any,
-      isMain: data.isMain,
+      splitType: data.splitType as any,
+      role: data.role as any,
+      targetSets: data.targetSets,
+      targetMinReps: data.targetMinReps,
+      targetMaxReps: data.targetMaxReps,
+      order: data.order,
       notes: data.notes || null,
     },
   })
@@ -25,8 +33,12 @@ export async function updateExercise(
   id: string,
   data: {
     name: string
-    moduleCode: string
-    isMain: boolean
+    splitType: string
+    role: string
+    targetSets: number
+    targetMinReps: number
+    targetMaxReps: number
+    order: number
     notes?: string
   },
 ) {
@@ -34,8 +46,12 @@ export async function updateExercise(
     where: { id },
     data: {
       name: data.name,
-      moduleCode: data.moduleCode as any,
-      isMain: data.isMain,
+      splitType: data.splitType as any,
+      role: data.role as any,
+      targetSets: data.targetSets,
+      targetMinReps: data.targetMinReps,
+      targetMaxReps: data.targetMaxReps,
+      order: data.order,
       notes: data.notes || null,
     },
   })

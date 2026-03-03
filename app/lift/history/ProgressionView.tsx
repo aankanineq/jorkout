@@ -2,28 +2,24 @@
 
 import { useState } from 'react'
 
-const MODULE_LABEL: Record<string, string> = {
-  SQ: '스쿼트',
-  HN: '힙힌지',
-  PU: '수평푸시',
-  VU: '수직푸시',
-  PL: '수직풀',
-  RL: '수평풀',
+const SPLIT_LABEL: Record<string, string> = {
+  PUSH: '푸시',
+  PULL: '풀',
+  LEG: '레그',
 }
 
-type SetInfo = { weight: number; reps: number; rpe: number | null }
+type SetInfo = { weight: number; reps: number }
 type LogEntry = {
   date: string
   topWeight: number
   totalVolume: number
-  avgRpe: number | null
   sets: SetInfo[]
   suggestIncrease: boolean
 }
 type ExerciseData = {
   id: string
   name: string
-  moduleCode: string
+  splitType: string
   logs: LogEntry[]
 }
 
@@ -62,7 +58,7 @@ export default function ProgressionView({ exercises }: { exercises: ExerciseData
       {exercise && exercise.logs.length > 0 ? (
         <div className="space-y-4">
           <p className="text-xs text-zinc-400">
-            {MODULE_LABEL[exercise.moduleCode]} · {exercise.logs.length}회 기록
+            {SPLIT_LABEL[exercise.splitType]} · {exercise.logs.length}회 기록
           </p>
 
           {/* Simple bar chart of top weight */}
@@ -93,22 +89,18 @@ export default function ProgressionView({ exercises }: { exercises: ExerciseData
               <div key={i} className="rounded-lg bg-zinc-50 px-4 py-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-zinc-700">{formatDate(log.date)}</span>
-                  <div className="flex items-center gap-3 text-xs text-zinc-400">
-                    {log.avgRpe && <span>RPE {log.avgRpe}</span>}
-                    <span>볼륨 {log.totalVolume.toLocaleString()}kg</span>
-                  </div>
+                  <span className="text-xs text-zinc-400">볼륨 {log.totalVolume.toLocaleString()}kg</span>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
                   {log.sets.map((s, j) => (
                     <span key={j} className="text-xs px-2 py-0.5 rounded bg-zinc-100 text-zinc-600">
                       {s.weight}×{s.reps}
-                      {s.rpe && <span className="text-zinc-400"> @{s.rpe}</span>}
                     </span>
                   ))}
                 </div>
                 {log.suggestIncrease && (
                   <p className="mt-2 text-xs text-emerald-600 font-medium">
-                    모든 세트 8렙+ 달성 — 다음 세션에서 무게 증가를 고려하세요
+                    전 세트 최대렙 달성 → 다음 세션 +5kg 증량
                   </p>
                 )}
               </div>

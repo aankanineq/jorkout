@@ -3,6 +3,12 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import SessionRecorder from './SessionRecorder'
 
+const SPLIT_LABEL: Record<string, string> = {
+  PUSH: '푸시',
+  PULL: '풀',
+  LEG: '레그',
+}
+
 export default async function SessionPage({
   params,
 }: {
@@ -13,11 +19,6 @@ export default async function SessionPage({
   const session = await prisma.liftSession.findUnique({
     where: { id },
     include: {
-      splitDay: {
-        include: {
-          modules: { orderBy: { order: 'asc' } },
-        },
-      },
       exerciseLogs: {
         orderBy: { order: 'asc' },
         include: {
@@ -30,38 +31,8 @@ export default async function SessionPage({
 
   if (!session) notFound()
 
-  const moduleCodes = session.splitDay.modules.map((m: any) => m.moduleCode)
-
-  const exercises = await prisma.exercise.findMany({
-    where: { moduleCode: { in: moduleCodes } },
-    orderBy: [{ moduleCode: 'asc' }, { isMain: 'desc' }, { name: 'asc' }],
-  })
-
-  // Check weekly running load
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const dayOfWeek = today.getDay()
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-  const weekStart = new Date(today)
-  weekStart.setDate(today.getDate() + mondayOffset)
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekStart.getDate() + 7)
-
-  const weekRuns = await prisma.runSession.findMany({
-    where: { date: { gte: weekStart, lt: weekEnd } },
-  })
-  const weekRunKm = weekRuns.reduce((sum: number, r: any) => sum + r.distanceKm, 0)
-  const hasHighIntensity = weekRuns.some((r: any) => ['TEMPO', 'INTERVAL', 'RACE'].includes(r.runType))
-
-  let runLoadWarning: string | null = null
-  if (weekRunKm >= 40) {
-    runLoadWarning = `이번 주 러닝 ${weekRunKm.toFixed(1)}km — 메인 리프트 3세트 이하로 제한하세요`
-  } else if (hasHighIntensity) {
-    runLoadWarning = '이번 주 고강도 러닝이 있습니다 — 액세서리를 줄여보세요'
-  }
-
-  // Fetch previous session data for each exercise in the available pool
-  const exerciseIds = exercises.map((e: any) => e.id)
+  // Fetch previous session data for each exercise
+  const exerciseIds = session.exerciseLogs.map((l: any) => l.exerciseId)
   const previousLogs = await prisma.exerciseLog.findMany({
     where: {
       exerciseId: { in: exerciseIds },
@@ -77,14 +48,23 @@ export default async function SessionPage({
     distinct: ['exerciseId'],
   })
 
-  const previousData: Record<string, { weight: number; reps: number; rpe: number | null }[]> = {}
+  const previousData: Record<string, { weight: number; reps: number }[]> = {}
   previousLogs.forEach((log: any) => {
     previousData[log.exerciseId] = log.sets.map((s: any) => ({
       weight: s.weight,
       reps: s.reps,
-      rpe: s.rpe,
     }))
   })
+
+  // Check if progression is available for each exercise
+  // All sets hit targetMaxReps → suggest +5kg
+  const progressionInfo: Record<string, boolean> = {}
+  for (const log of previousLogs) {
+    const exercise = session.exerciseLogs.find((l: any) => l.exerciseId === log.exerciseId)?.exercise
+    if (!exercise || log.sets.length === 0) continue
+    const allHitMax = log.sets.every((s: any) => s.reps >= (exercise as any).targetMaxReps)
+    progressionInfo[log.exerciseId] = allHitMax
+  }
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 px-4 py-10">
@@ -93,14 +73,16 @@ export default async function SessionPage({
           session={{
             id: session.id,
             date: session.date.toISOString(),
-            splitLabel: session.splitDay.dayLabel,
-            modules: session.splitDay.modules.map((m: any) => m.moduleCode),
+            splitType: session.splitType,
+            splitLabel: SPLIT_LABEL[session.splitType],
             exerciseLogs: session.exerciseLogs.map((log: any) => ({
               id: log.id,
               exerciseId: log.exerciseId,
               exerciseName: log.exercise.name,
-              moduleCode: log.moduleCode,
-              isMain: log.exercise.isMain,
+              role: log.exercise.role,
+              targetSets: log.exercise.targetSets,
+              targetMinReps: log.exercise.targetMinReps,
+              targetMaxReps: log.exercise.targetMaxReps,
               order: log.order,
               sets: log.sets.map((s: any) => ({
                 id: s.id,
@@ -112,14 +94,8 @@ export default async function SessionPage({
               })),
             })),
           }}
-          exercises={exercises.map((e: any) => ({
-            id: e.id,
-            name: e.name,
-            moduleCode: e.moduleCode,
-            isMain: e.isMain,
-          }))}
           previousData={previousData}
-          runLoadWarning={runLoadWarning}
+          progressionInfo={progressionInfo}
         />
       </div>
     </div>

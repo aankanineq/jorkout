@@ -118,7 +118,12 @@ export default async function RunPage() {
     <div className="min-h-screen bg-white text-zinc-900 px-4 py-10">
       <div className="mx-auto max-w-2xl space-y-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-zinc-900">러닝</h1>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-zinc-400 hover:text-zinc-600 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+            </Link>
+            <h1 className="text-2xl font-bold text-zinc-900">러닝</h1>
+          </div>
           <div className="flex gap-2">
             <Link
               href="/run/race/new"

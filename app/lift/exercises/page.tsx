@@ -2,16 +2,16 @@ export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma'
 import ExerciseList from './ExerciseList'
 
-const MODULE_ORDER = ['SQ', 'HN', 'PU', 'VU', 'PL', 'RL']
+const SPLIT_ORDER = ['PUSH', 'PULL', 'LEG']
 
 export default async function ExercisesPage() {
   const exercises = await prisma.exercise.findMany({
-    orderBy: [{ moduleCode: 'asc' }, { isMain: 'desc' }, { name: 'asc' }],
+    orderBy: [{ splitType: 'asc' }, { order: 'asc' }],
   })
 
-  const grouped = MODULE_ORDER.map((code) => ({
-    moduleCode: code,
-    exercises: exercises.filter((e: any) => e.moduleCode === code),
+  const grouped = SPLIT_ORDER.map((splitType) => ({
+    splitType,
+    exercises: exercises.filter((e: any) => e.splitType === splitType),
   }))
 
   return <ExerciseList grouped={grouped} />
