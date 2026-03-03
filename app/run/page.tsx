@@ -100,7 +100,7 @@ export default async function RunPage() {
     ? Math.ceil((new Date(race.date).getTime() - today.getTime()) / 86400000)
     : null
 
-  const thisWeekKm = thisWeekRuns.reduce((sum, r) => sum + r.distanceKm, 0)
+  const thisWeekKm = thisWeekRuns.reduce((sum: number, r: any) => sum + r.distanceKm, 0)
 
   // Find current week in plan
   const currentWeek = race?.runPlan?.weeks.find((w: any) => {

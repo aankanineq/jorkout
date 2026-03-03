@@ -109,10 +109,10 @@ export default async function Home() {
 
   // Weekly summary
   const weekLiftCount = weekLifts.length
-  const weekRunKm = weekRuns.reduce((sum, r) => sum + r.distanceKm, 0)
+  const weekRunKm = weekRuns.reduce((sum: number, r: any) => sum + r.distanceKm, 0)
 
   // Next split suggestion: find the split with fewest sessions, or round-robin
-  const nextSplit = cycle?.splits.reduce((min, split) =>
+  const nextSplit = cycle?.splits.reduce((min: any, split: any) =>
     split._count.sessions < min._count.sessions ? split : min
     , cycle.splits[0])
 

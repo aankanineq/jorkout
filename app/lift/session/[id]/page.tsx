@@ -49,8 +49,8 @@ export default async function SessionPage({
   const weekRuns = await prisma.runSession.findMany({
     where: { date: { gte: weekStart, lt: weekEnd } },
   })
-  const weekRunKm = weekRuns.reduce((sum, r) => sum + r.distanceKm, 0)
-  const hasHighIntensity = weekRuns.some((r) => ['TEMPO', 'INTERVAL', 'RACE'].includes(r.runType))
+  const weekRunKm = weekRuns.reduce((sum: number, r: any) => sum + r.distanceKm, 0)
+  const hasHighIntensity = weekRuns.some((r: any) => ['TEMPO', 'INTERVAL', 'RACE'].includes(r.runType))
 
   let runLoadWarning: string | null = null
   if (weekRunKm >= 40) {
@@ -77,7 +77,7 @@ export default async function SessionPage({
   })
 
   const previousData: Record<string, { weight: number; reps: number; rpe: number | null }[]> = {}
-  previousLogs.forEach((log) => {
+  previousLogs.forEach((log: any) => {
     previousData[log.exerciseId] = log.sets.map((s: any) => ({
       weight: s.weight,
       reps: s.reps,

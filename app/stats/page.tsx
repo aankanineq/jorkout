@@ -25,7 +25,7 @@ export default async function StatsPage() {
 
   // Aggregate lift data by exercise → by week
   const liftData: Record<string, { name: string; points: { date: string; weight: number }[] }> = {}
-  mainExerciseLogs.forEach((log) => {
+  mainExerciseLogs.forEach((log: any) => {
     const topWeight = log.sets.length > 0 ? Math.max(...log.sets.map((s: any) => s.weight)) : 0
     if (topWeight === 0) return
     if (!liftData[log.exerciseId]) {
@@ -40,7 +40,7 @@ export default async function StatsPage() {
   // Aggregate run data by week
   const runWeekly: { weekStart: string; totalKm: number; count: number }[] = []
   const weekMap = new Map<string, { totalKm: number; count: number }>()
-  runSessions.forEach((r) => {
+  runSessions.forEach((r: any) => {
     const d = new Date(r.date)
     const day = d.getDay()
     const mondayOffset = day === 0 ? -6 : 1 - day
@@ -52,7 +52,7 @@ export default async function StatsPage() {
     existing.count += 1
     weekMap.set(key, existing)
   })
-  weekMap.forEach((v, k) => runWeekly.push({ weekStart: k, ...v }))
+  weekMap.forEach((v: any, k: string) => runWeekly.push({ weekStart: k, ...v }))
   runWeekly.sort((a, b) => a.weekStart.localeCompare(b.weekStart))
 
   const bodyData = bodyLogs.map((b: any) => ({

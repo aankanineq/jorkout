@@ -48,7 +48,7 @@ export default function CalendarView({ activities }: { activities: ActivityData[
 
   // Group activities by date string (YYYY-MM-DD)
   const activityMap = new Map<string, ActivityData[]>()
-  activities.forEach((a) => {
+  activities.forEach((a: any) => {
     const key = new Date(a.date).toISOString().slice(0, 10)
     const list = activityMap.get(key) || []
     list.push(a)
@@ -113,11 +113,10 @@ export default function CalendarView({ activities }: { activities: ActivityData[
                   {dayActivities.map((a) => (
                     <div
                       key={a.id}
-                      className={`text-xs px-1 py-0.5 rounded truncate ${
-                        a.type === 'LIFT'
+                      className={`text-xs px-1 py-0.5 rounded truncate ${a.type === 'LIFT'
                           ? 'bg-indigo-100 text-indigo-700'
                           : 'bg-emerald-100 text-emerald-700'
-                      }`}
+                        }`}
                     >
                       {a.type === 'LIFT' && a.lift
                         ? `${a.lift.modules.map((m) => MODULE_LABEL[m]?.slice(0, 2)).join('/')}`

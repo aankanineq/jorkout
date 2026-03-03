@@ -37,7 +37,7 @@ export default function NewCyclePage() {
 
   const canSubmit =
     splitCount !== null &&
-    splitModules.every((mods) => mods.length > 0) &&
+    splitModules.every((mods: any) => mods.length > 0) &&
     !pending
 
   async function handleSubmit() {
@@ -67,8 +67,8 @@ export default function NewCyclePage() {
                 key={n}
                 onClick={() => handleSplitCount(n)}
                 className={`px-6 py-3 rounded-xl text-lg font-semibold transition-colors ${splitCount === n
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
                   }`}
               >
                 {n}분할
@@ -92,8 +92,8 @@ export default function NewCyclePage() {
                         key={mod}
                         onClick={() => toggleModule(splitIdx, mod)}
                         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${active
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
                           }`}
                       >
                         {MODULE_LABEL[mod]}
