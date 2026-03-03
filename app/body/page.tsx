@@ -20,7 +20,7 @@ export default async function BodyPage() {
             bodyFat: todayLog.bodyFat,
             notes: todayLog.notes,
           } : null}
-          recentLogs={logs.map((l) => ({
+          recentLogs={logs.map((l: any) => ({
             date: l.date.toISOString(),
             weight: l.weight,
             bodyFat: l.bodyFat,
