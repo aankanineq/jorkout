@@ -88,6 +88,16 @@ export default async function Home() {
     }
   })
 
+  const todayData = days.find(d => d.isToday);
+  const todayLifts = todayData?.lifts || [];
+  const todayRuns = todayData?.runs || [];
+  const hasWorkedOutToday = todayLifts.length > 0 || todayRuns.length > 0;
+
+  const completedWorkouts = [
+    ...todayLifts.map(l => SPLIT_LABEL[l.splitType]),
+    ...(todayRuns.length > 0 ? ['러닝'] : [])
+  ].join(', ');
+
   return (
     <div className="min-h-screen bg-white text-zinc-900 px-4 py-10">
       <div className="mx-auto max-w-3xl space-y-10">
@@ -108,15 +118,15 @@ export default async function Home() {
         <WeeklyTracker days={days} />
 
         {/* Today's workout suggestion */}
-        <div className={`rounded-xl border px-5 py-4 ${days.find(d => d.isToday)?.lifts.length ? 'bg-zinc-50 border-zinc-200' : 'bg-indigo-50 border-indigo-200'}`}>
-          <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${days.find(d => d.isToday)?.lifts.length ? 'text-zinc-400' : 'text-indigo-400'}`}>
+        <div className={`rounded-xl border px-5 py-4 ${hasWorkedOutToday ? 'bg-zinc-50 border-zinc-200' : 'bg-indigo-50 border-indigo-200'}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${hasWorkedOutToday ? 'text-zinc-400' : 'text-indigo-400'}`}>
             오늘 운동
           </p>
           <div className="flex items-center justify-between">
-            <span className={`text-lg font-semibold ${days.find(d => d.isToday)?.lifts.length ? 'text-zinc-500' : 'text-zinc-900'}`}>
-              {days.find(d => d.isToday)?.lifts.length ? '완료 🎉' : SPLIT_LABEL[nextSplit]}
+            <span className={`text-lg font-semibold ${hasWorkedOutToday ? 'text-zinc-500' : 'text-zinc-900'}`}>
+              {hasWorkedOutToday ? `${completedWorkouts} 완료 🎉` : SPLIT_LABEL[nextSplit]}
             </span>
-            {days.find(d => d.isToday)?.lifts.length ? (
+            {hasWorkedOutToday ? (
               <span className="text-sm px-4 py-2 rounded-lg bg-zinc-100 text-zinc-400 font-medium cursor-default">
                 수고하셨습니다
               </span>
