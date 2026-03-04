@@ -6,25 +6,32 @@ import { revalidatePath } from 'next/cache'
 export async function createBodyLog(data: {
   weight?: number | null
   bodyFat?: number | null
-  notes?: string
 }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
   await prisma.bodyLog.upsert({
     where: { date: today },
-    update: {
-      weight: data.weight ?? null,
-      bodyFat: data.bodyFat ?? null,
-      notes: data.notes || null,
-    },
     create: {
       date: today,
       weight: data.weight ?? null,
       bodyFat: data.bodyFat ?? null,
-      notes: data.notes || null,
+    },
+    update: {
+      weight: data.weight ?? null,
+      bodyFat: data.bodyFat ?? null,
     },
   })
 
-  revalidatePath('/body')
+  revalidatePath('/')
+}
+
+export async function getRecentBodyLogs(days: number = 30) {
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+
+  return prisma.bodyLog.findMany({
+    where: { date: { gte: since } },
+    orderBy: { date: 'desc' },
+  })
 }

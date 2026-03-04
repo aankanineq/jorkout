@@ -1,42 +1,48 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { SplitType } from '@prisma/client'
+import { LiftType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { advanceCycle } from './liftConfig'
 
-const SPLIT_ORDER: SplitType[] = ['PUSH', 'PULL', 'LEG']
+export async function startSession(liftType: LiftType) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
 
-export async function getNextSplitType(): Promise<SplitType> {
-  const lastSession = await prisma.liftSession.findFirst({
-    orderBy: { date: 'desc' },
+  // 오늘 같은 liftType 세션 있으면 기존 반환
+  const existing = await prisma.liftSession.findFirst({
+    where: { date: { gte: today, lt: tomorrow }, liftType },
   })
 
-  if (!lastSession) return 'PUSH'
+  if (existing) {
+    redirect(`/session/${existing.id}`)
+  }
 
-  const idx = SPLIT_ORDER.indexOf(lastSession.splitType)
-  return SPLIT_ORDER[(idx + 1) % SPLIT_ORDER.length]
-}
-
-export async function startSession(splitType: SplitType) {
+  // 운동 목록
   const exercises = await prisma.exercise.findMany({
-    where: { splitType },
+    where: { liftType },
     orderBy: { order: 'asc' },
   })
 
+  // Activity + LiftSession + ExerciseLogs 생성
   const activity = await prisma.activity.create({
     data: {
-      date: new Date(),
+      date: today,
       type: 'LIFT',
       liftSession: {
         create: {
-          splitType,
-          date: new Date(),
+          liftType,
+          date: today,
           exerciseLogs: {
-            create: exercises.map((ex, i) => ({
-              exerciseId: ex.id,
-              order: i,
-            })),
+            create: exercises
+              .filter((ex) => ex.role !== 'BBB') // BBB는 MAIN과 같은 운동이므로 별도 log 불필요
+              .map((ex, i) => ({
+                exerciseId: ex.id,
+                order: i,
+              })),
           },
         },
       },
@@ -44,7 +50,10 @@ export async function startSession(splitType: SplitType) {
     include: { liftSession: true },
   })
 
-  redirect(`/lift/session/${activity.liftSession!.id}`)
+  // 사이클 진행
+  await advanceCycle(liftType)
+
+  redirect(`/session/${activity.liftSession!.id}`)
 }
 
 export async function saveSet(
@@ -54,15 +63,13 @@ export async function saveSet(
     setNumber: number
     weight: number
     reps: number
+    isWarmup?: boolean
   },
 ) {
   if (data.setId) {
     await prisma.exerciseSet.update({
       where: { id: data.setId },
-      data: {
-        weight: data.weight,
-        reps: data.reps,
-      },
+      data: { weight: data.weight, reps: data.reps, isWarmup: data.isWarmup ?? false },
     })
   } else {
     await prisma.exerciseSet.create({
@@ -71,6 +78,7 @@ export async function saveSet(
         setNumber: data.setNumber,
         weight: data.weight,
         reps: data.reps,
+        isWarmup: data.isWarmup ?? false,
       },
     })
   }
@@ -78,7 +86,7 @@ export async function saveSet(
   const log = await prisma.exerciseLog.findUniqueOrThrow({
     where: { id: exerciseLogId },
   })
-  revalidatePath(`/lift/session/${log.sessionId}`)
+  revalidatePath(`/session/${log.liftSessionId}`)
 }
 
 export async function deleteSet(setId: string) {
@@ -86,27 +94,15 @@ export async function deleteSet(setId: string) {
     where: { id: setId },
     include: { exerciseLog: true },
   })
-
   await prisma.exerciseSet.delete({ where: { id: setId } })
-  revalidatePath(`/lift/session/${set.exerciseLog.sessionId}`)
-}
-
-export async function deleteExerciseLog(exerciseLogId: string) {
-  const log = await prisma.exerciseLog.findUniqueOrThrow({
-    where: { id: exerciseLogId },
-  })
-
-  await prisma.exerciseLog.delete({ where: { id: exerciseLogId } })
-  revalidatePath(`/lift/session/${log.sessionId}`)
+  revalidatePath(`/session/${set.exerciseLog.liftSessionId}`)
 }
 
 export async function deleteSession(sessionId: string) {
   const session = await prisma.liftSession.findUniqueOrThrow({
     where: { id: sessionId },
   })
-
   await prisma.liftSession.delete({ where: { id: sessionId } })
   await prisma.activity.delete({ where: { id: session.activityId } })
-
-  revalidatePath('/lift')
+  revalidatePath('/')
 }

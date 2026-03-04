@@ -1,65 +1,67 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { LiftType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
+
+export async function getExercisesByLiftType(liftType: LiftType) {
+  return prisma.exercise.findMany({
+    where: { liftType },
+    orderBy: { order: 'asc' },
+  })
+}
 
 export async function createExercise(data: {
   name: string
-  splitType: string
+  liftType: LiftType
   role: string
+  order: number
   targetSets: number
   targetMinReps: number
   targetMaxReps: number
-  order: number
-  notes?: string
+  availableWeights?: number[]
 }) {
   await prisma.exercise.create({
     data: {
       name: data.name,
-      splitType: data.splitType as any,
-      role: data.role as any,
+      liftType: data.liftType,
+      role: data.role,
+      order: data.order,
       targetSets: data.targetSets,
       targetMinReps: data.targetMinReps,
       targetMaxReps: data.targetMaxReps,
-      order: data.order,
-      notes: data.notes || null,
+      availableWeights: data.availableWeights ?? [],
     },
   })
-
-  revalidatePath('/lift/exercises')
+  revalidatePath('/settings')
 }
 
 export async function updateExercise(
   id: string,
   data: {
-    name: string
-    splitType: string
-    role: string
-    targetSets: number
-    targetMinReps: number
-    targetMaxReps: number
-    order: number
-    notes?: string
+    name?: string
+    order?: number
+    targetSets?: number
+    targetMinReps?: number
+    targetMaxReps?: number
   },
 ) {
   await prisma.exercise.update({
     where: { id },
-    data: {
-      name: data.name,
-      splitType: data.splitType as any,
-      role: data.role as any,
-      targetSets: data.targetSets,
-      targetMinReps: data.targetMinReps,
-      targetMaxReps: data.targetMaxReps,
-      order: data.order,
-      notes: data.notes || null,
-    },
+    data,
   })
-
-  revalidatePath('/lift/exercises')
+  revalidatePath('/settings')
 }
 
 export async function deleteExercise(id: string) {
   await prisma.exercise.delete({ where: { id } })
-  revalidatePath('/lift/exercises')
+  revalidatePath('/settings')
+}
+
+export async function updateWeightPresets(id: string, weights: number[]) {
+  await prisma.exercise.update({
+    where: { id },
+    data: { availableWeights: weights.sort((a, b) => a - b) },
+  })
+  revalidatePath('/settings')
 }

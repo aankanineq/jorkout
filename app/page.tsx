@@ -1,153 +1,180 @@
-export const dynamic = 'force-dynamic';
-import { prisma } from '@/lib/prisma'
+import { getRecommendation, getFatigueState, adjustFatigue } from './actions/fatigue'
+import { getWeeklyStats } from './actions/activity'
+import { startSession } from './actions/liftSession'
+import { logRest } from './actions/activity'
+import { getRecentBodyLogs, createBodyLog } from './actions/bodyLog'
+import { getAllLiftConfigs } from './actions/liftConfig'
 import Link from 'next/link'
-import { getNextSplitType } from '@/app/actions/liftSession'
-import WeeklyTracker, { WeeklyDayData } from '@/app/components/WeeklyTracker'
+import { FatigueBar } from './components/FatigueBar'
+import { revalidatePath } from 'next/cache'
 
-const SPLIT_LABEL: Record<string, string> = {
-  PUSH: '푸시',
-  PULL: '풀',
-  LEG: '레그',
+const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
+const ACTIVITY_ICONS: Record<string, string> = {
+  LIFT: '🏋️', RUN: '🏃', SPORT: '🎾', REST: '😴',
+}
+const LIFT_NAMES: Record<string, string> = {
+  BENCH: 'Bench', SQUAT: 'Squat', OHP: 'OHP', DEAD: 'Dead',
 }
 
-export default async function Home() {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  // Get Sunday of current week
-  const dayOfWeek = today.getDay() // 0 is Sunday
-  const sundayOffset = -dayOfWeek
-  const weekStart = new Date(today)
-  weekStart.setDate(today.getDate() + sundayOffset)
-
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekStart.getDate() + 7)
-
-  const [nextSplit, weekLifts, weekRuns] = await Promise.all([
-    getNextSplitType(),
-    prisma.liftSession.findMany({
-      where: { date: { gte: weekStart, lt: weekEnd } },
-      select: {
-        id: true,
-        date: true,
-        splitType: true,
-        duration: true,
-        exerciseLogs: {
-          select: {
-            id: true,
-            exercise: { select: { name: true, role: true } },
-            sets: { select: { id: true, weight: true, reps: true, isWarmup: true } }
-          },
-          orderBy: { order: 'asc' }
-        }
-      }
-    }),
-    prisma.runSession.findMany({
-      where: { date: { gte: weekStart, lt: weekEnd } },
-      select: {
-        id: true,
-        date: true,
-        distanceKm: true,
-        durationSec: true,
-        runType: true
-      }
-    }),
+export default async function Dashboard() {
+  const [rec, weekly, bodyLogs, configs] = await Promise.all([
+    getRecommendation(),
+    getWeeklyStats(),
+    getRecentBodyLogs(7),
+    getAllLiftConfigs(),
   ])
 
-  const days: WeeklyDayData[] = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date(weekStart)
-    d.setDate(d.getDate() + i)
-    const isToday = d.getTime() === today.getTime()
-
-    // Check if lift or run exists on this date
-    const liftsToday = weekLifts.filter(l => {
-      const ld = new Date(l.date)
-      return ld.getFullYear() === d.getFullYear() && ld.getMonth() === d.getMonth() && ld.getDate() === d.getDate()
-    })
-    const runsToday = weekRuns.filter(r => {
-      const rd = new Date(r.date)
-      return rd.getFullYear() === d.getFullYear() && rd.getMonth() === d.getMonth() && rd.getDate() === d.getDate()
-    })
-
-    return {
-      date: d,
-      dayName: ['일', '월', '화', '수', '목', '금', '토'][i],
-      isToday,
-      lifts: liftsToday.map(l => ({
-        id: l.id,
-        splitType: l.splitType,
-        duration: l.duration,
-        exerciseLogs: l.exerciseLogs
-      })),
-      runs: runsToday.map(r => ({
-        id: r.id,
-        runType: r.runType,
-        distanceKm: r.distanceKm,
-        durationSec: r.durationSec
-      }))
-    }
-  })
-
-  const todayData = days.find(d => d.isToday);
-  const todayLifts = todayData?.lifts || [];
-  const todayRuns = todayData?.runs || [];
-  const hasWorkedOutToday = todayLifts.length > 0 || todayRuns.length > 0;
-
-  const completedWorkouts = [
-    ...todayLifts.map(l => SPLIT_LABEL[l.splitType]),
-    ...(todayRuns.length > 0 ? ['러닝'] : [])
-  ].join(', ');
+  const latestBody = bodyLogs[0]
+  const configMap = Object.fromEntries(configs.map((c) => [c.liftType, c]))
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 px-4 py-10">
-      <div className="mx-auto max-w-3xl space-y-10">
+    <div className="p-4 max-w-lg mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">JORKOUT</h1>
+        <Link href="/settings" className="text-white/40 text-lg">⚙️</Link>
+      </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Jorkout</h1>
-            <p className="mt-1 text-sm text-zinc-500">운동 계획 & 기록</p>
-          </div>
-          <nav className="flex gap-2">
-            <Link href="/lift" className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors">리프팅</Link>
-            <Link href="/run" className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors">러닝</Link>
-          </nav>
-        </div>
+      {/* 피로도 */}
+      <section className="space-y-2">
+        <h2 className="text-sm text-white/60 font-medium">현재 피로도</h2>
+        <FatigueBar fatigue={rec.fatigue} />
+      </section>
 
-        {/* Weekly Activities */}
-        <WeeklyTracker days={days} />
-
-        {/* Today's workout suggestion */}
-        <div className={`rounded-xl border px-5 py-4 ${hasWorkedOutToday ? 'bg-zinc-50 border-zinc-200' : 'bg-indigo-50 border-indigo-200'}`}>
-          <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${hasWorkedOutToday ? 'text-zinc-400' : 'text-indigo-400'}`}>
-            오늘 운동
-          </p>
-          <div className="flex items-center justify-between">
-            <span className={`text-lg font-semibold ${hasWorkedOutToday ? 'text-zinc-500' : 'text-zinc-900'}`}>
-              {hasWorkedOutToday ? `${completedWorkouts} 완료 🎉` : SPLIT_LABEL[nextSplit]}
-            </span>
-            {hasWorkedOutToday ? (
-              <span className="text-sm px-4 py-2 rounded-lg bg-zinc-100 text-zinc-400 font-medium cursor-default">
-                수고하셨습니다
-              </span>
-            ) : (
+      {/* 추천 */}
+      <section className="space-y-3">
+        <h2 className="text-sm text-white/60 font-medium">추천</h2>
+        <div className="bg-white/5 rounded-xl p-4 space-y-3">
+          {rec.primary.type === 'LIFT' && 'subType' in rec.primary ? (() => {
+            const liftType = rec.primary.subType
+            return (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🏋️</span>
+                <div>
+                  <div className="font-bold text-lg">
+                    {LIFT_NAMES[liftType]} Day
+                  </div>
+                  <div className="text-sm text-white/50">{rec.primary.reason}</div>
+                </div>
+              </div>
+              {configMap[liftType] && (
+                <div className="text-sm text-white/40">
+                  TM {configMap[liftType].tm}kg · {configMap[liftType].weekLabel} week
+                </div>
+              )}
               <form action={async () => {
-                'use server';
-                const { startSession } = await import('@/app/actions/liftSession');
-                await startSession(nextSplit);
+                'use server'
+                await startSession(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD')
               }}>
-                <button
-                  type="submit"
-                  className="text-sm px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
-                >
-                  시작
+                <button className="w-full bg-white text-black font-bold py-3 rounded-lg">
+                  시작하기
                 </button>
               </form>
-            )}
-          </div>
+            </>
+            )
+          })() : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">😴</span>
+                <div>
+                  <div className="font-bold text-lg">REST</div>
+                  <div className="text-sm text-white/50">{rec.primary.reason}</div>
+                </div>
+              </div>
+              <form action={logRest}>
+                <button className="w-full bg-white/10 text-white font-bold py-3 rounded-lg">
+                  휴식 기록
+                </button>
+              </form>
+            </>
+          )}
         </div>
 
-      </div>
+        {/* 대안 */}
+        <div className="flex gap-2">
+          {rec.alternatives.map((alt, i) => (
+            <div key={i} className="flex-1">
+              {alt.type === 'RUN' ? (
+                <Link href={`/run/log?type=${alt.subType}`}
+                  className="block bg-white/5 rounded-lg p-3 text-center">
+                  <div className="text-lg">🏃</div>
+                  <div className="text-xs text-white/60">{alt.subType} Run</div>
+                </Link>
+              ) : alt.type === 'SPORT' ? (
+                <Link href="/sport/log"
+                  className="block bg-white/5 rounded-lg p-3 text-center">
+                  <div className="text-lg">🎾</div>
+                  <div className="text-xs text-white/60">Sport</div>
+                </Link>
+              ) : (
+                <form action={logRest}>
+                  <button className="w-full bg-white/5 rounded-lg p-3 text-center">
+                    <div className="text-lg">😴</div>
+                    <div className="text-xs text-white/60">Rest</div>
+                  </button>
+                </form>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 이번 주 */}
+      <section className="space-y-2">
+        <h2 className="text-sm text-white/60 font-medium">이번 주</h2>
+        <div className="bg-white/5 rounded-xl p-4 space-y-1">
+          {weekly.activities.length === 0 ? (
+            <p className="text-white/30 text-sm">아직 기록 없음</p>
+          ) : (
+            weekly.activities.map((act) => {
+              const d = new Date(act.date)
+              const dayName = DAY_NAMES[d.getDay()]
+              let label: string = act.type
+              if (act.liftSession) label = `${LIFT_NAMES[act.liftSession.liftType] || act.liftSession.liftType}`
+              if (act.runSession) label = `${act.runSession.runType} Run`
+              if (act.sportSession) label = act.sportSession.sportType as string
+              return (
+                <div key={act.id} className="flex items-center gap-2 text-sm">
+                  <span className="text-white/30 w-6">{dayName}</span>
+                  <span>{ACTIVITY_ICONS[act.type]}</span>
+                  <span>{label}</span>
+                </div>
+              )
+            })
+          )}
+          <div className="text-xs text-white/30 pt-2 border-t border-white/5">
+            리프트 {weekly.liftCount}회 · 러닝 {weekly.runKm.toFixed(1)}km · 휴식 {weekly.restCount}일
+          </div>
+        </div>
+      </section>
+
+      {/* 체중 */}
+      <section className="space-y-2">
+        <h2 className="text-sm text-white/60 font-medium">체중 추적</h2>
+        <div className="bg-white/5 rounded-xl p-4">
+          {latestBody ? (
+            <div className="text-lg font-bold">
+              {latestBody.weight ?? '-'}kg
+              {latestBody.bodyFat ? ` · 체지방 ${latestBody.bodyFat}%` : ''}
+            </div>
+          ) : (
+            <div className="text-white/30 text-sm">기록 없음</div>
+          )}
+          <form action={async (formData: FormData) => {
+            'use server'
+            const weight = formData.get('weight') ? Number(formData.get('weight')) : null
+            const bodyFat = formData.get('bodyFat') ? Number(formData.get('bodyFat')) : null
+            await createBodyLog({ weight, bodyFat })
+          }} className="flex gap-2 mt-2">
+            <input name="weight" type="number" step="0.1" placeholder="체중(kg)"
+              className="bg-white/10 rounded px-2 py-1 text-sm w-24" />
+            <input name="bodyFat" type="number" step="0.1" placeholder="체지방(%)"
+              className="bg-white/10 rounded px-2 py-1 text-sm w-24" />
+            <button className="bg-white/10 rounded px-3 py-1 text-sm">기록</button>
+          </form>
+        </div>
+      </section>
     </div>
   )
 }

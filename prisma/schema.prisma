@@ -7,88 +7,109 @@ datasource db {
 }
 
 // ============================================
-// 공통
+// Enums
 // ============================================
-
-model Activity {
-  id   String       @id @default(cuid())
-  date DateTime     @db.Date
-  type ActivityType
-  notes String?
-
-  liftSession LiftSession?
-  runSession  RunSession?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
 
 enum ActivityType {
   LIFT
   RUN
+  SPORT
+  REST
+}
+
+enum LiftType {
+  BENCH
+  SQUAT
+  OHP
+  DEAD
+}
+
+enum RunType {
+  EASY
+  QUALITY
+  LONG
+}
+
+enum SportType {
+  TENNIS
+  SOCCER
+  OTHER
+}
+
+enum CycleWeek {
+  FIVE
+  THREE
+  ONE
 }
 
 // ============================================
-// 헬스 - PPL 3분할
+// Models
 // ============================================
 
-enum SplitType {
-  PUSH
-  PULL
-  LEG
+model Activity {
+  id        String       @id @default(cuid())
+  date      DateTime     @db.Date
+  type      ActivityType
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  liftSession  LiftSession?
+  runSession   RunSession?
+  sportSession SportSession?
 }
 
-enum ExerciseRole {
-  MAIN
-  VOLUME
+model LiftConfig {
+  id          String    @id @default(cuid())
+  liftType    LiftType  @unique
+  tm          Float
+  cycleWeek   CycleWeek
+  tmIncrement Float     @default(5)
 }
 
 model Exercise {
-  id            String       @id @default(cuid())
-  name          String       @unique
-  splitType     SplitType
-  role          ExerciseRole
-  targetSets    Int
-  targetMinReps Int
-  targetMaxReps Int
-  order         Int
-  notes         String?
+  id               String   @id @default(cuid())
+  name             String   @unique
+  liftType         LiftType
+  role             String   // MAIN | BBB | ACCESSORY
+  order            Int
+  targetSets       Int
+  targetMinReps    Int
+  targetMaxReps    Int
+  availableWeights Float[]
 
   exerciseLogs ExerciseLog[]
+}
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model FatigueOverride {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  zone      String   // PUSH | PULL | QUAD | POST | CARDIO
+  value     Int      // 0-6
+  updatedAt DateTime @default(now())
+
+  @@unique([date, zone])
 }
 
 model LiftSession {
-  id         String    @id @default(cuid())
-  activityId String    @unique
-  splitType  SplitType
-  date       DateTime  @db.Date
+  id         String   @id @default(cuid())
+  activityId String   @unique
+  liftType   LiftType
+  date       DateTime @db.Date
   duration   Int?
-  notes      String?
 
   activity     Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
   exerciseLogs ExerciseLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model ExerciseLog {
-  id         String @id @default(cuid())
-  sessionId  String
-  exerciseId String
-  order      Int
-  notes      String?
+  id            String @id @default(cuid())
+  liftSessionId String
+  exerciseId    String
+  order         Int
 
-  session  LiftSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  exercise Exercise    @relation(fields: [exerciseId], references: [id])
-  sets     ExerciseSet[]
-
-  createdAt DateTime @default(now())
-
-  @@unique([sessionId, exerciseId])
+  liftSession LiftSession @relation(fields: [liftSessionId], references: [id], onDelete: Cascade)
+  exercise    Exercise    @relation(fields: [exerciseId], references: [id])
+  sets        ExerciseSet[]
 }
 
 model ExerciseSet {
@@ -98,115 +119,50 @@ model ExerciseSet {
   weight        Float
   reps          Int
   isWarmup      Boolean @default(false)
-  notes         String?
 
   exerciseLog ExerciseLog @relation(fields: [exerciseLogId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-}
-
-// ============================================
-// 러닝
-// ============================================
-
-model Race {
-  id         String     @id @default(cuid())
-  name       String
-  date       DateTime   @db.Date
-  distance   Float
-  goalTime   Int?
-  actualTime Int?
-  status     RaceStatus @default(UPCOMING)
-
-  runPlan RunPlan?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-enum RaceStatus {
-  UPCOMING
-  COMPLETED
-  DNS
-  DNF
-}
-
-model RunPlan {
-  id     String @id @default(cuid())
-  raceId String @unique
-  name   String
-
-  race  Race      @relation(fields: [raceId], references: [id], onDelete: Cascade)
-  weeks RunWeek[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model RunWeek {
-  id         String   @id @default(cuid())
-  planId     String
-  weekNumber Int
-  startDate  DateTime @db.Date
-  targetKm   Float
-  phase      RunPhase
-  notes      String?
-
-  plan RunPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([planId, weekNumber])
-}
-
-enum RunPhase {
-  BASE
-  BUILD
-  PEAK
-  TAPER
-  RACE_WEEK
-  RECOVERY
 }
 
 model RunSession {
   id         String   @id @default(cuid())
   activityId String   @unique
   date       DateTime @db.Date
+  runType    RunType
   distanceKm Float
   durationSec Int
   avgPace    Int
-  rpe        Float?
-  runType    RunType
-  notes      String?
   raceId     String?
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
-enum RunType {
-  EASY
-  TEMPO
-  INTERVAL
-  LONG
-  RECOVERY
-  RACE
-  FARTLEK
+model SportSession {
+  id          String    @id @default(cuid())
+  activityId  String    @unique
+  date        DateTime  @db.Date
+  sportType   SportType
+  durationMin Int
+  rpe         Int?
+  notes       String?
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 }
 
-// ============================================
-// 바디 트래킹
-// ============================================
+model Race {
+  id             String   @id @default(cuid())
+  name           String
+  date           DateTime @db.Date
+  distanceKm     Float
+  goalTime       String?
+  actualTime     String?
+  weeklyTargetKm Float?
+  status         String   @default("UPCOMING")
+  createdAt      DateTime @default(now())
+}
 
 model BodyLog {
   id      String   @id @default(cuid())
-  date    DateTime @db.Date @unique
+  date    DateTime @unique @db.Date
   weight  Float?
   bodyFat Float?
-  notes   String?
-
-  createdAt DateTime @default(now())
 }

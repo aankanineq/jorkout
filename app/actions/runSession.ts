@@ -3,33 +3,46 @@
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 
+export async function getNextRunType(): Promise<'EASY' | 'QUALITY' | 'LONG'> {
+  const last = await prisma.runSession.findFirst({
+    orderBy: { date: 'desc' },
+    select: { runType: true },
+  })
+
+  if (!last) return 'EASY'
+  if (last.runType === 'EASY') return 'QUALITY'
+  if (last.runType === 'QUALITY') return 'LONG'
+  return 'EASY'
+}
+
 export async function createRunSession(data: {
   distanceKm: number
   durationSec: number
   runType: string
-  rpe?: number | null
   notes?: string
+  raceId?: string
 }) {
   const avgPace = Math.round(data.durationSec / data.distanceKm)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
   await prisma.activity.create({
     data: {
-      date: new Date(),
+      date: today,
       type: 'RUN',
       notes: data.notes || null,
       runSession: {
         create: {
-          date: new Date(),
+          date: today,
+          runType: data.runType as 'EASY' | 'QUALITY' | 'LONG',
           distanceKm: data.distanceKm,
           durationSec: data.durationSec,
           avgPace,
-          rpe: data.rpe ?? null,
-          runType: data.runType as any,
-          notes: data.notes || null,
+          raceId: data.raceId || null,
         },
       },
     },
   })
 
-  redirect('/run')
+  redirect('/')
 }
