@@ -42,6 +42,7 @@ export function SettingsClient({
   const [isPending, startTransition] = useTransition()
   const [editingTM, setEditingTM] = useState<Record<string, string>>({})
   const [newWeight, setNewWeight] = useState<Record<string, string>>({})
+  const [editingSetsReps, setEditingSetsReps] = useState<Record<string, { sets: string; minReps: string; maxReps: string }>>({})
 
   const grouped = LIFT_ORDER.map((lt) => ({
     liftType: lt,
@@ -103,15 +104,81 @@ export function SettingsClient({
                   <span className="text-sm">
                     {ex.name} <span className="text-muted-foreground/60 text-xs">({ex.role})</span>
                   </span>
-                  <span className="text-xs text-muted-foreground/60">
-                    {ex.targetSets}×{ex.targetMinReps}-{ex.targetMaxReps}
-                  </span>
+                  {editingSetsReps[ex.id] ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={editingSetsReps[ex.id].sets}
+                        onChange={(e) => setEditingSetsReps((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], sets: e.target.value } }))}
+                        className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
+                      />
+                      <span className="text-xs text-muted-foreground">×</span>
+                      <input
+                        type="number"
+                        value={editingSetsReps[ex.id].minReps}
+                        onChange={(e) => setEditingSetsReps((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], minReps: e.target.value } }))}
+                        className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
+                      />
+                      <span className="text-xs text-muted-foreground">-</span>
+                      <input
+                        type="number"
+                        value={editingSetsReps[ex.id].maxReps}
+                        onChange={(e) => setEditingSetsReps((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], maxReps: e.target.value } }))}
+                        className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
+                      />
+                      <button
+                        onClick={() => {
+                          const { sets, minReps, maxReps } = editingSetsReps[ex.id]
+                          startTransition(async () => {
+                            await updateExercise(ex.id, {
+                              targetSets: Number(sets),
+                              targetMinReps: Number(minReps),
+                              targetMaxReps: Number(maxReps),
+                            })
+                            setEditingSetsReps((prev) => { const n = { ...prev }; delete n[ex.id]; return n })
+                            router.refresh()
+                          })
+                        }}
+                        className="text-xs bg-muted border border-border/50 rounded px-1.5 py-0.5"
+                      >
+                        저장
+                      </button>
+                      <button
+                        onClick={() => setEditingSetsReps((prev) => { const n = { ...prev }; delete n[ex.id]; return n })}
+                        className="text-xs text-muted-foreground/60 px-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingSetsReps((prev) => ({
+                        ...prev,
+                        [ex.id]: { sets: String(ex.targetSets), minReps: String(ex.targetMinReps), maxReps: String(ex.targetMaxReps) },
+                      }))}
+                      className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors"
+                    >
+                      {ex.targetSets}×{ex.targetMinReps}-{ex.targetMaxReps}
+                    </button>
+                  )}
                 </div>
                 {ex.role !== 'MAIN' && (
                   <div className="flex flex-wrap gap-1 items-center">
-                    {ex.availableWeights.map((w) => (
-                      <span key={w} className="bg-muted border border-border/50 rounded px-1.5 py-0.5 text-xs">
+                    {ex.availableWeights.map((w, i) => (
+                      <span key={i} className="bg-muted border border-border/50 rounded px-1.5 py-0.5 text-xs flex items-center gap-0.5">
                         {w === 0 ? 'BW' : w}
+                        <button
+                          onClick={() => {
+                            const updated = ex.availableWeights.filter((_, idx) => idx !== i)
+                            startTransition(async () => {
+                              await updateWeightPresets(ex.id, updated)
+                              router.refresh()
+                            })
+                          }}
+                          className="text-muted-foreground/40 hover:text-foreground ml-0.5"
+                        >
+                          ×
+                        </button>
                       </span>
                     ))}
                     <div className="flex items-center gap-1 ml-1">

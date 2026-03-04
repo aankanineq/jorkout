@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { todayKST } from '@/lib/date'
 
 type FatigueState = { push: number; pull: number; quad: number; post: number; cardio: number }
 type FatigueZone = keyof FatigueState
@@ -64,8 +65,7 @@ export async function getFatigueState(): Promise<FatigueState> {
   }
 
   // Apply overrides
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = todayKST()
   const overrides = await prisma.fatigueOverride.findMany({
     where: { date: today },
   })
@@ -86,8 +86,7 @@ export async function getFatigueState(): Promise<FatigueState> {
 }
 
 export async function adjustFatigue(zone: string, value: number) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = todayKST()
   const clamped = clamp(value, 0, 6)
 
   await prisma.fatigueOverride.upsert({
@@ -174,20 +173,29 @@ export async function getRecommendation() {
   }
 
   // Alternatives
-  const alternatives: { type: 'RUN' | 'SPORT' | 'REST'; subType?: string; reason: string }[] = []
+  const alternatives: { type: 'LIFT' | 'RUN' | 'SPORT' | 'REST'; subType?: string; reason: string }[] = []
 
-  if (fatigue.cardio <= 2) {
-    // Run recommendation
-    let runType: 'EASY' | 'QUALITY' | 'LONG' = 'EASY'
-    if (lastRun) {
-      if (lastRun.runType === 'EASY') runType = 'QUALITY'
-      else if (lastRun.runType === 'QUALITY') runType = 'LONG'
-      else runType = 'EASY'
-    }
-    // If legs are tired, only easy
-    if (fatigue.quad + fatigue.post >= 6) runType = 'EASY'
-    alternatives.push({ type: 'RUN', subType: runType, reason: `CARDIO ${fatigue.cardio}/6` })
+  // 나머지 리프트 3종을 피로도 기준으로 정렬해서 추가
+  const otherLifts = (['BENCH', 'SQUAT', 'OHP', 'DEAD'] as const).filter(t => t !== liftType)
+  const liftScores = otherLifts.map(t => {
+    const load = LOAD_TABLE[t]
+    const score = (Object.keys(load) as FatigueZone[]).reduce((sum, z) => sum + load[z] * fatigue[z], 0)
+    return { type: 'LIFT' as const, subType: t, score, reason: t }
+  })
+  liftScores.sort((a, b) => a.score - b.score) // 낮을수록 추천
+  for (const ls of liftScores) {
+    alternatives.push(ls)
   }
+
+  // Run
+  let runType: 'EASY' | 'QUALITY' | 'LONG' = 'EASY'
+  if (lastRun) {
+    if (lastRun.runType === 'EASY') runType = 'QUALITY'
+    else if (lastRun.runType === 'QUALITY') runType = 'LONG'
+    else runType = 'EASY'
+  }
+  if (fatigue.quad + fatigue.post >= 6) runType = 'EASY'
+  alternatives.push({ type: 'RUN', subType: runType, reason: `CARDIO ${fatigue.cardio}/6` })
 
   alternatives.push({ type: 'SPORT', reason: '스포츠 기록' })
   alternatives.push({ type: 'REST', reason: '휴식' })

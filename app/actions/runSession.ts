@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import { todayKST } from '@/lib/date'
 
 export async function getNextRunType(): Promise<'EASY' | 'QUALITY' | 'LONG'> {
   const last = await prisma.runSession.findFirst({
@@ -23,8 +24,7 @@ export async function createRunSession(data: {
   raceId?: string
 }) {
   const avgPace = Math.round(data.durationSec / data.distanceKm)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = todayKST()
 
   await prisma.activity.create({
     data: {

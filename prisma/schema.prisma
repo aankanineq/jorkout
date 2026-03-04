@@ -96,6 +96,7 @@ model LiftSession {
   liftType   LiftType
   date       DateTime @db.Date
   duration   Int?
+  completed  Boolean  @default(false)
 
   activity     Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
   exerciseLogs ExerciseLog[]

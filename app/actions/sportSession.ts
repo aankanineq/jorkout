@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import { todayKST } from '@/lib/date'
 
 export async function createSportSession(data: {
   sportType: string
@@ -9,8 +10,7 @@ export async function createSportSession(data: {
   rpe?: number
   notes?: string
 }) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = todayKST()
 
   await prisma.activity.create({
     data: {

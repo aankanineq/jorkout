@@ -5,12 +5,11 @@ import { LiftType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { advanceCycle } from './liftConfig'
+import { todayKST, tomorrowKST } from '@/lib/date'
 
 export async function startSession(liftType: LiftType) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+  const today = todayKST()
+  const tomorrow = tomorrowKST()
 
   // 오늘 같은 liftType 세션 있으면 기존 반환
   const existing = await prisma.liftSession.findFirst({
@@ -96,6 +95,15 @@ export async function deleteSet(setId: string) {
   })
   await prisma.exerciseSet.delete({ where: { id: setId } })
   revalidatePath(`/session/${set.exerciseLog.liftSessionId}`)
+}
+
+export async function completeSession(sessionId: string) {
+  await prisma.liftSession.update({
+    where: { id: sessionId },
+    data: { completed: true },
+  })
+  revalidatePath('/')
+  redirect('/')
 }
 
 export async function deleteSession(sessionId: string) {

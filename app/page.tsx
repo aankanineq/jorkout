@@ -1,30 +1,41 @@
 import { getRecommendation } from './actions/fatigue'
-import { getWeeklyStats } from './actions/activity'
+import { getWeeklyStats, getTodayActivities } from './actions/activity'
 import { startSession } from './actions/liftSession'
 import { logRest } from './actions/activity'
 import { getRecentBodyLogs, createBodyLog } from './actions/bodyLog'
 import { getAllLiftConfigs } from './actions/liftConfig'
 import Link from 'next/link'
 import { FatigueBar } from './components/FatigueBar'
+import { toKST } from '@/lib/date'
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
-const ACTIVITY_ICONS: Record<string, string> = {
-  LIFT: '🏋️', RUN: '🏃', SPORT: '🎾', REST: '😴',
+const ACTIVITY_LABELS: Record<string, string> = {
+  LIFT: 'LIFT', RUN: 'RUN', SPORT: 'SPORT', REST: 'REST',
 }
 const LIFT_NAMES: Record<string, string> = {
   BENCH: 'Bench', SQUAT: 'Squat', OHP: 'OHP', DEAD: 'Dead',
 }
 
 export default async function Dashboard() {
-  const [rec, weekly, bodyLogs, configs] = await Promise.all([
+  const [rec, weekly, bodyLogs, configs, todayActs] = await Promise.all([
     getRecommendation(),
     getWeeklyStats(),
     getRecentBodyLogs(7),
     getAllLiftConfigs(),
+    getTodayActivities(),
   ])
 
   const latestBody = bodyLogs[0]
   const configMap = Object.fromEntries(configs.map((c: { liftType: string, tm: number, weekLabel: string }) => [c.liftType, c]))
+  // 진행중인 리프트 세션 찾기
+  const inProgressAct = todayActs.find((act: { type: string, liftSession?: { completed: boolean } | null }) =>
+    act.type === 'LIFT' && act.liftSession && !act.liftSession.completed
+  ) as { id: string, liftSession: { id: string, liftType: string, completed: boolean } } | undefined
+  // 완료된 활동만 카운트
+  const completedActs = todayActs.filter((act: { type: string, liftSession?: { completed: boolean } | null }) =>
+    act.type !== 'LIFT' || (act.liftSession && act.liftSession.completed)
+  )
+  const todayDone = completedActs.length > 0
 
   return (
     <div className="p-5 max-w-lg mx-auto space-y-10">
@@ -42,92 +53,130 @@ export default async function Dashboard() {
         <FatigueBar fatigue={rec.fatigue} />
       </section>
 
-      {/* 추천 */}
+      {/* 추천 / 진행중 / 완료 */}
       <section>
-        <h2 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">오늘의 추천</h2>
+        <h2 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">
+          {inProgressAct ? '진행중' : todayDone ? '오늘의 운동' : '오늘의 추천'}
+        </h2>
 
-        <div className="bg-card border border-border shadow-sm rounded-2xl p-5 mb-4">
-          {rec.primary.type === 'LIFT' && 'subType' in rec.primary ? (() => {
-            const liftType = rec.primary.subType
-            return (
-              <div className="space-y-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-foreground/5 flex items-center justify-center text-2xl">
-                    🏋️
-                  </div>
+        {inProgressAct ? (
+          <Link href={`/session/${inProgressAct.liftSession.id}`}
+            className="block bg-card border border-yellow-500/30 shadow-sm rounded-2xl p-5">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+              <span className="font-semibold">{LIFT_NAMES[inProgressAct.liftSession.liftType]} Day</span>
+              <span className="ml-auto text-xs text-muted-foreground">이어서 하기 →</span>
+            </div>
+          </Link>
+        ) : todayDone ? (
+          <>
+            {/* 완료 카드 */}
+            <div className="bg-card border border-border shadow-sm rounded-2xl p-5 mb-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="font-semibold">오늘 운동 완료</span>
+              </div>
+              <div className="text-sm text-muted-foreground space-y-1.5">
+                {completedActs.map((act: { id: string, type: string, liftSession?: { liftType: string } | null, runSession?: { runType: string } | null, sportSession?: { sportType: string } | null }) => {
+                  let label = act.type
+                  if (act.liftSession) label = `${LIFT_NAMES[act.liftSession.liftType] || act.liftSession.liftType} Day`
+                  if (act.runSession) label = `${act.runSession.runType} Run`
+                  if (act.sportSession) label = act.sportSession.sportType
+                  return <div key={act.id}>{ACTIVITY_LABELS[act.type]} — {label}</div>
+                })}
+              </div>
+            </div>
+
+            {/* 추가 운동 */}
+            <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">추가 운동</div>
+          </>
+        ) : (
+          <div className="bg-card border border-border shadow-sm rounded-2xl p-5 mb-4">
+            {rec.primary.type === 'LIFT' && 'subType' in rec.primary ? (() => {
+              const liftType = rec.primary.subType
+              return (
+                <div className="space-y-5">
                   <div>
                     <h3 className="font-bold text-xl tracking-tight">
                       {LIFT_NAMES[liftType]} Day
                     </h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">{rec.primary.reason}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{rec.primary.reason}</p>
                   </div>
+
+                  {configMap[liftType] && (
+                    <div className="bg-background border border-border rounded-xl p-3 flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Target Weight</span>
+                      <span className="font-mono font-medium">{configMap[liftType].tm} kg</span>
+                      <span className="text-muted-foreground bg-muted px-2 py-0.5 rounded-md text-xs">{configMap[liftType].weekLabel} week</span>
+                    </div>
+                  )}
+
+                  <form action={async () => {
+                    'use server'
+                    await startSession(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD')
+                  }}>
+                    <button className="w-full bg-foreground text-background font-medium py-3.5 rounded-xl hover:opacity-90 transition-all active:scale-[0.98] shadow-sm">
+                      운동 시작하기
+                    </button>
+                  </form>
                 </div>
-
-                {configMap[liftType] && (
-                  <div className="bg-background border border-border rounded-xl p-3 flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Target Weight</span>
-                    <span className="font-mono font-medium">{configMap[liftType].tm} kg</span>
-                    <span className="text-muted-foreground bg-muted px-2 py-0.5 rounded-md text-xs">{configMap[liftType].weekLabel} week</span>
-                  </div>
-                )}
-
-                <form action={async () => {
-                  'use server'
-                  await startSession(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD')
-                }}>
-                  <button className="w-full bg-foreground text-background font-medium py-3.5 rounded-xl hover:opacity-90 transition-all active:scale-[0.98] shadow-sm">
-                    운동 시작하기
+              )
+            })() : (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="font-bold text-xl tracking-tight">Rest Day</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{rec.primary.reason}</p>
+                </div>
+                <form action={logRest}>
+                  <button className="w-full bg-muted text-foreground border border-border font-medium py-3.5 rounded-xl hover:bg-muted/80 transition-all active:scale-[0.98]">
+                    휴식 기록하기
                   </button>
                 </form>
               </div>
-            )
-          })() : (
-            <div className="space-y-5">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-foreground/5 flex items-center justify-center text-2xl">
-                  😴
-                </div>
-                <div>
-                  <h3 className="font-bold text-xl tracking-tight">Rest Day</h3>
-                  <p className="text-sm text-muted-foreground mt-0.5">{rec.primary.reason}</p>
-                </div>
-              </div>
-              <form action={logRest}>
-                <button className="w-full bg-muted text-foreground border border-border font-medium py-3.5 rounded-xl hover:bg-muted/80 transition-all active:scale-[0.98]">
-                  휴식 기록하기
-                </button>
-              </form>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* 대안 */}
-        <div className="grid grid-cols-3 gap-3">
-          {rec.alternatives.map((alt: { type: string; subType?: string }, i: number) => (
+        {!inProgressAct && <div className="grid grid-cols-3 gap-3">
+          {rec.alternatives.filter((alt: { type: string }) => {
+            if (!todayDone) return true
+            if (alt.type === 'REST') return false
+            const doneTypes = new Set(completedActs.map((a: { type: string }) => a.type))
+            return !doneTypes.has(alt.type)
+          }).map((alt: { type: string; subType?: string }, i: number) => (
             <div key={i}>
-              {alt.type === 'RUN' ? (
+              {alt.type === 'LIFT' ? (
+                <form action={async () => {
+                  'use server'
+                  await startSession(alt.subType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD')
+                }} className="h-full">
+                  <button className="w-full h-full flex flex-col items-center justify-center bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
+                    <span className="text-xs font-bold tracking-wide text-muted-foreground mb-1">LIFT</span>
+                    <span className="text-xs text-muted-foreground">{LIFT_NAMES[alt.subType!] || alt.subType}</span>
+                  </button>
+                </form>
+              ) : alt.type === 'RUN' ? (
                 <Link href={`/run/log?type=${alt.subType}`}
                   className="flex flex-col items-center justify-center h-full bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
-                  <span className="text-2xl mb-2">🏃</span>
-                  <span className="text-xs font-medium text-muted-foreground">{alt.subType} Run</span>
+                  <span className="text-xs font-bold tracking-wide text-muted-foreground mb-1">RUN</span>
+                  <span className="text-xs text-muted-foreground">{alt.subType}</span>
                 </Link>
               ) : alt.type === 'SPORT' ? (
                 <Link href="/sport/log"
                   className="flex flex-col items-center justify-center h-full bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
-                  <span className="text-2xl mb-2">🎾</span>
-                  <span className="text-xs font-medium text-muted-foreground">Sport</span>
+                  <span className="text-xs font-bold tracking-wide text-muted-foreground">SPORT</span>
                 </Link>
               ) : (
                 <form action={logRest} className="h-full">
                   <button className="w-full h-full flex flex-col items-center justify-center bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
-                    <span className="text-2xl mb-2">😴</span>
-                    <span className="text-xs font-medium text-muted-foreground">Rest</span>
+                    <span className="text-xs font-bold tracking-wide text-muted-foreground">REST</span>
                   </button>
                 </form>
               )}
             </div>
           ))}
-        </div>
+        </div>}
       </section>
 
       {/* 이번 주 */}
@@ -138,8 +187,8 @@ export default async function Dashboard() {
             <div className="p-5 text-center text-muted-foreground text-sm">아직 기록 없음</div>
           ) : (
             <div className="divide-y divide-border">
-              {weekly.activities.map((act: any) => {
-                const d = new Date(act.date)
+              {weekly.activities.map((act) => {
+                const d = toKST(act.date)
                 const dayName = DAY_NAMES[d.getDay()]
                 let label: string = act.type
                 if (act.liftSession) label = `${LIFT_NAMES[act.liftSession.liftType] || act.liftSession.liftType}`
@@ -149,7 +198,7 @@ export default async function Dashboard() {
                 return (
                   <div key={act.id} className="flex items-center gap-4 py-3 px-5 hover:bg-muted/50 transition-colors">
                     <span className="text-muted-foreground text-sm font-medium w-6">{dayName}</span>
-                    <span className="text-lg">{ACTIVITY_ICONS[act.type]}</span>
+                    <span className="text-xs font-bold tracking-wide text-muted-foreground w-10">{ACTIVITY_LABELS[act.type]}</span>
                     <span className="font-medium text-sm flex-1">{label}</span>
                   </div>
                 )

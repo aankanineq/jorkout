@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { getLiftConfig } from '@/app/actions/liftConfig'
+import { completeSession } from '@/app/actions/liftSession'
 import { SessionRecorder } from './SessionRecorder'
 
 export default async function SessionPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,11 +43,17 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
     previousLogs.map((p) => [p.exerciseId, p.previousSets])
   )
 
+  async function handleComplete() {
+    'use server'
+    await completeSession(session!.id)
+  }
+
   return (
     <SessionRecorder
       session={JSON.parse(JSON.stringify(session))}
       config={JSON.parse(JSON.stringify(config))}
       previousSets={JSON.parse(JSON.stringify(prevMap))}
+      onComplete={handleComplete}
     />
   )
 }

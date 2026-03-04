@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { saveSet, deleteSet, deleteSession } from '@/app/actions/liftSession'
+import { saveSet, deleteSet } from '@/app/actions/liftSession'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -52,10 +52,12 @@ export function SessionRecorder({
   session,
   config,
   previousSets,
+  onComplete,
 }: {
   session: Session
   config: Config
   previousSets: Record<string, ExerciseSet[]>
+  onComplete: () => Promise<void>
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -74,20 +76,13 @@ export function SessionRecorder({
     })
   }
 
-  function handleDeleteSession() {
-    if (!confirm('세션을 삭제하시겠습니까?')) return
-    startTransition(async () => {
-      await deleteSession(session.id)
-    })
-  }
-
   return (
     <div className="p-4 max-w-lg mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Link href="/" className="text-muted-foreground/80">← 홈</Link>
         <h1 className="font-bold">{LIFT_NAMES[session.liftType]} Day · {config.weekLabel}</h1>
-        <button onClick={handleDeleteSession} className="text-red-400 text-sm">삭제</button>
+        <div className="w-6" />
       </div>
 
       {session.exerciseLogs.map((log) => {
@@ -152,9 +147,16 @@ export function SessionRecorder({
         )
       })}
 
-      <Link href="/" className="block text-center bg-foreground text-background font-bold py-3 rounded-lg">
+      <button
+        onClick={() => {
+          startTransition(async () => {
+            await onComplete()
+          })
+        }}
+        className="w-full bg-foreground text-background font-bold py-3 rounded-lg hover:opacity-90 transition-opacity active:scale-[0.98]"
+      >
         세션 완료
-      </Link>
+      </button>
     </div>
   )
 }
@@ -171,43 +173,124 @@ function MainSetRow({
   onSave: (logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number }) => void
   isAmrap: boolean
 }) {
-  const [reps, setReps] = useState(existingSet?.reps?.toString() ?? '')
+  const baseRep = typeof targetReps === 'string' ? parseInt(targetReps) : targetReps
+  const [reps, setReps] = useState(existingSet?.reps ?? baseRep)
   const done = !!existingSet
+  const [editing, setEditing] = useState(false)
+  const locked = done && !editing
 
   return (
-    <div className={`flex items-center gap-3 ${done ? 'opacity-60' : ''}`}>
+    <div className={`flex items-center gap-3 ${locked ? 'opacity-50' : ''}`}>
       <span className="text-xs text-muted-foreground/60 w-8">Set {setNumber}</span>
       <span className="font-mono text-sm">{targetWeight}kg</span>
       <span className="text-xs text-muted-foreground/80">({percentage}%)</span>
-      <span className="text-xs text-muted-foreground/80">×{targetReps}</span>
+
       <div className="flex-1" />
-      {isAmrap || !done ? (
-        <div className="flex items-center gap-1">
-          <input
-            type="number"
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-            placeholder="렙"
-            className="bg-muted border border-border/50 rounded px-2 py-1 w-14 text-sm text-center"
-          />
-          <button
-            onClick={() => {
-              if (!reps) return
-              onSave(logId, {
-                setId: existingSet?.id,
-                setNumber,
-                weight: targetWeight,
-                reps: Number(reps),
-              })
-            }}
-            className="text-sm bg-muted border border-border/50 rounded px-2 py-1"
-          >
-            ✅
-          </button>
+
+      {/* 횟수 칸: -/숫자/+ */}
+      <div className="flex items-center gap-0.5">
+        <button
+          disabled={locked}
+          onClick={() => setReps(Math.max(1, reps - 1))}
+          className="w-7 h-9 flex items-center justify-center rounded-l-lg bg-muted border border-border/50 text-sm text-muted-foreground disabled:opacity-30"
+        >
+          -
+        </button>
+        <div className="w-10 h-9 flex items-center justify-center bg-muted border-y border-border/50 font-mono text-sm font-bold">
+          {reps}
         </div>
-      ) : (
-        <span className="text-sm text-green-400">✅ {existingSet.reps}렙</span>
-      )}
+        <button
+          disabled={locked}
+          onClick={() => setReps(reps + 1)}
+          className="w-7 h-9 flex items-center justify-center rounded-r-lg bg-muted border border-border/50 text-sm text-muted-foreground disabled:opacity-30"
+        >
+          +
+        </button>
+      </div>
+
+      {/* 완료/수정 버튼 */}
+      <button
+        onClick={() => {
+          if (locked) {
+            setEditing(true)
+          } else {
+            onSave(logId, {
+              setId: existingSet?.id,
+              setNumber,
+              weight: targetWeight,
+              reps,
+            })
+            setEditing(false)
+          }
+        }}
+        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+          locked
+            ? 'bg-foreground/20 text-foreground'
+            : 'bg-foreground text-background'
+        }`}
+      >
+        O
+      </button>
+    </div>
+  )
+}
+
+function BBBSetRow({
+  setNumber, weight, existingSet, logId, onSave,
+}: {
+  setNumber: number
+  weight: number
+  existingSet?: ExerciseSet
+  logId: string
+  onSave: (logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number }) => void
+}) {
+  const [reps, setReps] = useState(existingSet?.reps ?? 10)
+  const done = !!existingSet
+  const [editing, setEditing] = useState(false)
+  const locked = done && !editing
+
+  return (
+    <div className={`flex items-center gap-2 ${locked ? 'opacity-50' : ''}`}>
+      <span className="text-xs text-muted-foreground/60 w-8">Set {setNumber - 3}</span>
+      <span className="font-mono text-sm">{weight}kg</span>
+
+      <div className="flex-1" />
+
+      <div className="flex items-center gap-0.5">
+        <button
+          disabled={locked}
+          onClick={() => setReps(Math.max(1, reps - 1))}
+          className="w-7 h-9 flex items-center justify-center rounded-l-lg bg-muted border border-border/50 text-sm text-muted-foreground disabled:opacity-30"
+        >
+          -
+        </button>
+        <div className="w-10 h-9 flex items-center justify-center bg-muted border-y border-border/50 font-mono text-sm font-bold">
+          {reps}
+        </div>
+        <button
+          disabled={locked}
+          onClick={() => setReps(reps + 1)}
+          className="w-7 h-9 flex items-center justify-center rounded-r-lg bg-muted border border-border/50 text-sm text-muted-foreground disabled:opacity-30"
+        >
+          +
+        </button>
+      </div>
+
+      <button
+        onClick={() => {
+          if (locked) {
+            setEditing(true)
+          } else {
+            onSave(logId, { setId: existingSet?.id, setNumber, weight, reps })
+            setEditing(false)
+          }
+        }}
+        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+          locked ? 'bg-foreground/20 text-foreground' : 'bg-foreground text-background'
+        }`}
+      >
+        O
+      </button>
     </div>
   )
 }
@@ -218,28 +301,117 @@ function BBBSets({
   logId: string
   weight: number
   existingSets: ExerciseSet[]
-  onSave: (logId: string, data: { setNumber: number; weight: number; reps: number }) => void
+  onSave: (logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number }) => void
 }) {
-  const completedCount = existingSets.length
-
   return (
-    <div className="flex items-center gap-2">
+    <div className="space-y-2">
       {[1, 2, 3, 4, 5].map((i) => {
-        const setNum = i + 3 // BBB starts at set 4
-        const done = existingSets.some((s) => s.setNumber === setNum)
+        const setNum = i + 3
+        const existingSet = existingSets.find((s) => s.setNumber === setNum)
         return (
-          <button
+          <BBBSetRow
             key={i}
-            onClick={() => {
-              if (!done) onSave(logId, { setNumber: setNum, weight, reps: 10 })
-            }}
-            className={`w-8 h-8 rounded text-sm ${done ? 'bg-green-500/30 text-green-400' : 'bg-muted border border-border/50 text-muted-foreground/80'}`}
-          >
-            {done ? '✅' : i}
-          </button>
+            setNumber={setNum}
+            weight={weight}
+            existingSet={existingSet}
+            logId={logId}
+            onSave={onSave}
+          />
         )
       })}
-      <span className="text-xs text-muted-foreground/60 ml-2">{completedCount}/5</span>
+    </div>
+  )
+}
+
+function AccessorySetRow({
+  setNumber, defaultWeight, defaultReps, existingSet, logId, onSave, availableWeights,
+}: {
+  setNumber: number
+  defaultWeight: number
+  defaultReps: number
+  existingSet?: ExerciseSet
+  logId: string
+  onSave: (logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number }) => void
+  availableWeights: number[]
+}) {
+  const [weight, setWeight] = useState(existingSet?.weight ?? defaultWeight)
+  const [reps, setReps] = useState(existingSet?.reps ?? defaultReps)
+  const [showWeights, setShowWeights] = useState(false)
+  const done = !!existingSet
+  const [editing, setEditing] = useState(false)
+  const locked = done && !editing
+
+  return (
+    <div className="space-y-1.5">
+      <div className={`flex items-center gap-2 ${locked ? 'opacity-50' : ''}`}>
+        <span className="text-xs text-muted-foreground/60 w-8">Set {setNumber}</span>
+
+        {/* 무게 (탭하면 변경 가능) */}
+        <button
+          disabled={locked}
+          onClick={() => setShowWeights(!showWeights)}
+          className="font-mono text-sm hover:text-foreground transition-colors disabled:opacity-60"
+        >
+          {weight === 0 ? 'BW' : `${weight}kg`}
+        </button>
+
+        <div className="flex-1" />
+
+        {/* 횟수 칸 */}
+        <div className="flex items-center gap-0.5">
+          <button
+            disabled={locked}
+            onClick={() => setReps(Math.max(1, reps - 1))}
+            className="w-7 h-9 flex items-center justify-center rounded-l-lg bg-muted border border-border/50 text-sm text-muted-foreground disabled:opacity-30"
+          >
+            -
+          </button>
+          <div className="w-10 h-9 flex items-center justify-center bg-muted border-y border-border/50 font-mono text-sm font-bold">
+            {reps}
+          </div>
+          <button
+            disabled={locked}
+            onClick={() => setReps(reps + 1)}
+            className="w-7 h-9 flex items-center justify-center rounded-r-lg bg-muted border border-border/50 text-sm text-muted-foreground disabled:opacity-30"
+          >
+            +
+          </button>
+        </div>
+
+        {/* 완료/수정 버튼 */}
+        <button
+          onClick={() => {
+            if (locked) {
+              setEditing(true)
+            } else {
+              onSave(logId, { setId: existingSet?.id, setNumber, weight, reps })
+              setEditing(false)
+            }
+          }}
+          className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+            locked
+              ? 'bg-foreground/20 text-foreground'
+              : 'bg-foreground text-background'
+          }`}
+        >
+          O
+        </button>
+      </div>
+
+      {/* 무게 선택 팝업 */}
+      {showWeights && !locked && availableWeights.length > 0 && (
+        <div className="flex flex-wrap gap-1 pl-8">
+          {availableWeights.map((w) => (
+            <button
+              key={w}
+              onClick={() => { setWeight(w); setShowWeights(false) }}
+              className={`px-2 py-1 rounded text-xs ${weight === w ? 'bg-foreground text-background' : 'bg-muted border border-border/50'}`}
+            >
+              {w === 0 ? 'BW' : w}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -251,15 +423,9 @@ function AccessorySets({
   onSave: (logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number }) => void
   onDelete: (setId: string) => void
 }) {
-  const [selectedWeight, setSelectedWeight] = useState<number>(
-    log.sets[0]?.weight ?? log.exercise.availableWeights[0] ?? 0
-  )
-  const [reps, setReps] = useState('')
+  const target = `${log.exercise.targetSets}x${log.exercise.targetMinReps}-${log.exercise.targetMaxReps}`
+  const defaultWeight = log.sets[0]?.weight ?? log.exercise.availableWeights[0] ?? 0
 
-  const target = `${log.exercise.targetSets}×${log.exercise.targetMinReps}-${log.exercise.targetMaxReps}`
-  const nextSetNum = (log.sets.at(-1)?.setNumber ?? 0) + 1
-
-  // Check if all sets hit max reps → suggest +5kg
   const allMaxed = log.sets.length >= log.exercise.targetSets &&
     log.sets.every((s) => s.reps >= log.exercise.targetMaxReps)
 
@@ -267,68 +433,25 @@ function AccessorySets({
     <div className="space-y-2">
       <div className="text-xs text-muted-foreground/80">목표: {target}</div>
 
-      {/* 기록된 세트 */}
-      {log.sets.map((s) => (
-        <div key={s.id} className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground/60 w-12">Set {s.setNumber}</span>
-          <span className="font-mono">{s.weight}kg × {s.reps}</span>
-          <button onClick={() => onDelete(s.id)} className="text-red-400/60 text-xs ml-auto">✕</button>
-        </div>
-      ))}
+      {Array.from({ length: log.exercise.targetSets }, (_, i) => {
+        const setNum = i + 1
+        const existingSet = log.sets.find((s) => s.setNumber === setNum)
+        return (
+          <AccessorySetRow
+            key={i}
+            setNumber={setNum}
+            defaultWeight={defaultWeight}
+            defaultReps={log.exercise.targetMaxReps}
+            existingSet={existingSet}
+            logId={log.id}
+            onSave={onSave}
+            availableWeights={log.exercise.availableWeights}
+          />
+        )
+      })}
 
       {allMaxed && (
         <div className="text-xs text-yellow-400">모든 세트 목표 달성! +5kg 도전?</div>
-      )}
-
-      {/* 무게 선택 + 렙 입력 */}
-      {log.sets.length < log.exercise.targetSets + 2 && (
-        <div className="space-y-2">
-          {log.exercise.availableWeights.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {log.exercise.availableWeights.map((w) => (
-                <button
-                  key={w}
-                  onClick={() => setSelectedWeight(w)}
-                  className={`px-2 py-1 rounded text-xs ${selectedWeight === w ? 'bg-foreground text-background' : 'bg-muted border border-border/50'}`}
-                >
-                  {w === 0 ? 'BW' : w}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            {log.exercise.availableWeights.length === 0 && (
-              <input
-                type="number"
-                value={selectedWeight || ''}
-                onChange={(e) => setSelectedWeight(Number(e.target.value))}
-                placeholder="무게"
-                className="bg-muted border border-border/50 rounded px-2 py-1 w-16 text-sm"
-              />
-            )}
-            <input
-              type="number"
-              value={reps}
-              onChange={(e) => setReps(e.target.value)}
-              placeholder="렙"
-              className="bg-muted border border-border/50 rounded px-2 py-1 w-14 text-sm"
-            />
-            <button
-              onClick={() => {
-                if (!reps) return
-                onSave(log.id, {
-                  setNumber: nextSetNum,
-                  weight: selectedWeight,
-                  reps: Number(reps),
-                })
-                setReps('')
-              }}
-              className="bg-muted border border-border/50 rounded px-3 py-1 text-sm"
-            >
-              + 세트
-            </button>
-          </div>
-        </div>
       )}
     </div>
   )

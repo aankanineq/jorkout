@@ -2,13 +2,13 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { todayKST } from '@/lib/date'
 
 export async function createBodyLog(data: {
   weight?: number | null
   bodyFat?: number | null
 }) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = todayKST()
 
   await prisma.bodyLog.upsert({
     where: { date: today },
