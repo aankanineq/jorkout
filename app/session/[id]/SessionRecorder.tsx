@@ -85,7 +85,7 @@ export function SessionRecorder({
     <div className="p-4 max-w-lg mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Link href="/" className="text-white/40">← 홈</Link>
+        <Link href="/" className="text-muted-foreground/80">← 홈</Link>
         <h1 className="font-bold">{LIFT_NAMES[session.liftType]} Day · {config.weekLabel}</h1>
         <button onClick={handleDeleteSession} className="text-red-400 text-sm">삭제</button>
       </div>
@@ -95,14 +95,14 @@ export function SessionRecorder({
         const prev = previousSets[log.exerciseId] || []
 
         return (
-          <section key={log.id} className="bg-white/5 rounded-xl p-4 space-y-3">
+          <section key={log.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-bold">
                 {log.order + 1}. {log.exercise.name}
                 {isMain && ' (5/3/1)'}
               </h3>
               {!isMain && prev.length > 0 && (
-                <span className="text-xs text-white/30">
+                <span className="text-xs text-muted-foreground/60">
                   지난번: {prev.map((s) => `${s.weight}×${s.reps}`).join(', ')}
                 </span>
               )}
@@ -129,7 +129,7 @@ export function SessionRecorder({
                 })}
                 {/* BBB 세트 */}
                 <div className="pt-2 border-t border-white/10">
-                  <div className="text-sm text-white/50 mb-2">BBB 5×10 @ {config.bbbWeight}kg</div>
+                  <div className="text-sm text-muted-foreground mb-2">BBB 5×10 @ {config.bbbWeight}kg</div>
                   <BBBSets
                     logId={log.id}
                     weight={config.bbbWeight}
@@ -152,7 +152,7 @@ export function SessionRecorder({
         )
       })}
 
-      <Link href="/" className="block text-center bg-white text-black font-bold py-3 rounded-lg">
+      <Link href="/" className="block text-center bg-foreground text-background font-bold py-3 rounded-lg">
         세션 완료
       </Link>
     </div>
@@ -176,10 +176,10 @@ function MainSetRow({
 
   return (
     <div className={`flex items-center gap-3 ${done ? 'opacity-60' : ''}`}>
-      <span className="text-xs text-white/30 w-8">Set {setNumber}</span>
+      <span className="text-xs text-muted-foreground/60 w-8">Set {setNumber}</span>
       <span className="font-mono text-sm">{targetWeight}kg</span>
-      <span className="text-xs text-white/40">({percentage}%)</span>
-      <span className="text-xs text-white/40">×{targetReps}</span>
+      <span className="text-xs text-muted-foreground/80">({percentage}%)</span>
+      <span className="text-xs text-muted-foreground/80">×{targetReps}</span>
       <div className="flex-1" />
       {isAmrap || !done ? (
         <div className="flex items-center gap-1">
@@ -188,7 +188,7 @@ function MainSetRow({
             value={reps}
             onChange={(e) => setReps(e.target.value)}
             placeholder="렙"
-            className="bg-white/10 rounded px-2 py-1 w-14 text-sm text-center"
+            className="bg-muted border border-border/50 rounded px-2 py-1 w-14 text-sm text-center"
           />
           <button
             onClick={() => {
@@ -200,7 +200,7 @@ function MainSetRow({
                 reps: Number(reps),
               })
             }}
-            className="text-sm bg-white/10 rounded px-2 py-1"
+            className="text-sm bg-muted border border-border/50 rounded px-2 py-1"
           >
             ✅
           </button>
@@ -233,13 +233,13 @@ function BBBSets({
             onClick={() => {
               if (!done) onSave(logId, { setNumber: setNum, weight, reps: 10 })
             }}
-            className={`w-8 h-8 rounded text-sm ${done ? 'bg-green-500/30 text-green-400' : 'bg-white/10 text-white/40'}`}
+            className={`w-8 h-8 rounded text-sm ${done ? 'bg-green-500/30 text-green-400' : 'bg-muted border border-border/50 text-muted-foreground/80'}`}
           >
             {done ? '✅' : i}
           </button>
         )
       })}
-      <span className="text-xs text-white/30 ml-2">{completedCount}/5</span>
+      <span className="text-xs text-muted-foreground/60 ml-2">{completedCount}/5</span>
     </div>
   )
 }
@@ -265,12 +265,12 @@ function AccessorySets({
 
   return (
     <div className="space-y-2">
-      <div className="text-xs text-white/40">목표: {target}</div>
+      <div className="text-xs text-muted-foreground/80">목표: {target}</div>
 
       {/* 기록된 세트 */}
       {log.sets.map((s) => (
         <div key={s.id} className="flex items-center gap-2 text-sm">
-          <span className="text-white/30 w-12">Set {s.setNumber}</span>
+          <span className="text-muted-foreground/60 w-12">Set {s.setNumber}</span>
           <span className="font-mono">{s.weight}kg × {s.reps}</span>
           <button onClick={() => onDelete(s.id)} className="text-red-400/60 text-xs ml-auto">✕</button>
         </div>
@@ -289,7 +289,7 @@ function AccessorySets({
                 <button
                   key={w}
                   onClick={() => setSelectedWeight(w)}
-                  className={`px-2 py-1 rounded text-xs ${selectedWeight === w ? 'bg-white text-black' : 'bg-white/10'}`}
+                  className={`px-2 py-1 rounded text-xs ${selectedWeight === w ? 'bg-foreground text-background' : 'bg-muted border border-border/50'}`}
                 >
                   {w === 0 ? 'BW' : w}
                 </button>
@@ -303,7 +303,7 @@ function AccessorySets({
                 value={selectedWeight || ''}
                 onChange={(e) => setSelectedWeight(Number(e.target.value))}
                 placeholder="무게"
-                className="bg-white/10 rounded px-2 py-1 w-16 text-sm"
+                className="bg-muted border border-border/50 rounded px-2 py-1 w-16 text-sm"
               />
             )}
             <input
@@ -311,7 +311,7 @@ function AccessorySets({
               value={reps}
               onChange={(e) => setReps(e.target.value)}
               placeholder="렙"
-              className="bg-white/10 rounded px-2 py-1 w-14 text-sm"
+              className="bg-muted border border-border/50 rounded px-2 py-1 w-14 text-sm"
             />
             <button
               onClick={() => {
@@ -323,7 +323,7 @@ function AccessorySets({
                 })
                 setReps('')
               }}
-              className="bg-white/10 rounded px-3 py-1 text-sm"
+              className="bg-muted border border-border/50 rounded px-3 py-1 text-sm"
             >
               + 세트
             </button>

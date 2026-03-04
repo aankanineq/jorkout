@@ -34,26 +34,26 @@ export default async function RacePage() {
         const progress = race.weeklyTargetKm ? Math.min(100, (weekKm / race.weeklyTargetKm) * 100) : 0
 
         return (
-          <div key={race.id} className="bg-white/5 rounded-xl p-4 space-y-2">
+          <div key={race.id} className="bg-card border border-border rounded-xl p-4 space-y-2">
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-bold">{race.name}</div>
-                <div className="text-sm text-white/40">
+                <div className="text-sm text-muted-foreground/80">
                   {new Date(race.date).toLocaleDateString('ko-KR')} · {race.distanceKm}km
                 </div>
                 {race.goalTime && (
-                  <div className="text-sm text-white/40">목표: {race.goalTime}</div>
+                  <div className="text-sm text-muted-foreground/80">목표: {race.goalTime}</div>
                 )}
               </div>
-              <div className="text-2xl font-bold text-white/60">D-{dDay}</div>
+              <div className="text-2xl font-bold text-muted-foreground font-medium">D-{dDay}</div>
             </div>
 
             {race.weeklyTargetKm && (
               <div className="space-y-1">
-                <div className="text-xs text-white/40">
+                <div className="text-xs text-muted-foreground/80">
                   이번 주 러닝: {weekKm.toFixed(1)}/{race.weeklyTargetKm}km
                 </div>
-                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-2 bg-muted border border-border/50 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-500 rounded-full"
                     style={{ width: `${progress}%` }}
@@ -78,11 +78,11 @@ export default async function RacePage() {
       {/* 지난 대회 */}
       {past.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm text-white/60 font-medium">지난 대회</h2>
+          <h2 className="text-sm text-muted-foreground font-medium font-medium">지난 대회</h2>
           {past.map((race) => (
-            <div key={race.id} className="bg-white/5 rounded-lg p-3">
+            <div key={race.id} className="bg-card border border-border rounded-lg p-3">
               <div className="font-medium">{race.name}</div>
-              <div className="text-xs text-white/40">
+              <div className="text-xs text-muted-foreground/80">
                 {new Date(race.date).toLocaleDateString('ko-KR')} · {race.distanceKm}km
                 {race.actualTime ? ` · ${race.actualTime}` : ''}
                 {' · '}{race.status}

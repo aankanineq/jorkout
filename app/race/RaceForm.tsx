@@ -15,7 +15,7 @@ export function RaceForm() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full bg-white/5 rounded-lg p-3 text-center text-white/40 text-sm"
+        className="w-full bg-card border border-border rounded-lg p-3 text-center text-muted-foreground/80 text-sm"
       >
         + 대회 등록
       </button>
@@ -23,22 +23,22 @@ export function RaceForm() {
   }
 
   return (
-    <div className="bg-white/5 rounded-xl p-4 space-y-3">
+    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
       <h3 className="font-bold text-sm">대회 등록</h3>
       <input value={name} onChange={(e) => setName(e.target.value)}
-        placeholder="대회명" className="bg-white/10 rounded-lg px-3 py-2 w-full text-sm" />
+        placeholder="대회명" className="bg-muted border border-border/50 rounded-lg px-3 py-2 w-full text-sm" />
       <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-        className="bg-white/10 rounded-lg px-3 py-2 w-full text-sm" />
+        className="bg-muted border border-border/50 rounded-lg px-3 py-2 w-full text-sm" />
       <div className="flex gap-2">
         <input type="number" step="0.1" value={distance} onChange={(e) => setDistance(e.target.value)}
-          placeholder="거리(km)" className="bg-white/10 rounded-lg px-3 py-2 flex-1 text-sm" />
+          placeholder="거리(km)" className="bg-muted border border-border/50 rounded-lg px-3 py-2 flex-1 text-sm" />
         <input value={goalTime} onChange={(e) => setGoalTime(e.target.value)}
-          placeholder="목표시간 (1:59:59)" className="bg-white/10 rounded-lg px-3 py-2 flex-1 text-sm" />
+          placeholder="목표시간 (1:59:59)" className="bg-muted border border-border/50 rounded-lg px-3 py-2 flex-1 text-sm" />
       </div>
       <input type="number" step="1" value={weeklyTarget} onChange={(e) => setWeeklyTarget(e.target.value)}
-        placeholder="주간 목표 km (선택)" className="bg-white/10 rounded-lg px-3 py-2 w-full text-sm" />
+        placeholder="주간 목표 km (선택)" className="bg-muted border border-border/50 rounded-lg px-3 py-2 w-full text-sm" />
       <div className="flex gap-2">
-        <button onClick={() => setOpen(false)} className="flex-1 bg-white/10 rounded-lg py-2 text-sm">취소</button>
+        <button onClick={() => setOpen(false)} className="flex-1 bg-muted border border-border/50 rounded-lg py-2 text-sm">취소</button>
         <form action={async () => {
           if (!name || !date || !distance) return
           await createRace({
@@ -49,7 +49,7 @@ export function RaceForm() {
             weeklyTargetKm: weeklyTarget ? Number(weeklyTarget) : undefined,
           })
         }} className="flex-1">
-          <button className="w-full bg-white text-black rounded-lg py-2 text-sm font-bold">등록</button>
+          <button className="w-full bg-foreground text-background rounded-lg py-2 text-sm font-bold">등록</button>
         </form>
       </div>
     </div>

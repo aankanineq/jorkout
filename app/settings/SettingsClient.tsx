@@ -55,8 +55,8 @@ export function SettingsClient({
 
       {/* TM 설정 */}
       <section className="space-y-2">
-        <h2 className="text-sm text-white/60 font-medium">5/3/1 Training Max</h2>
-        <div className="bg-white/5 rounded-xl p-4 space-y-3">
+        <h2 className="text-sm text-muted-foreground font-medium font-medium">5/3/1 Training Max</h2>
+        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
           {grouped.map(({ liftType, config }) => {
             if (!config) return null
             return (
@@ -67,10 +67,10 @@ export function SettingsClient({
                   step="5"
                   value={editingTM[liftType] ?? config.tm}
                   onChange={(e) => setEditingTM({ ...editingTM, [liftType]: e.target.value })}
-                  className="bg-white/10 rounded px-2 py-1 w-20 text-sm text-center"
+                  className="bg-muted border border-border/50 rounded px-2 py-1 w-20 text-sm text-center"
                 />
-                <span className="text-xs text-white/40">kg</span>
-                <span className="text-xs text-white/30">{config.weekLabel}</span>
+                <span className="text-xs text-muted-foreground/80">kg</span>
+                <span className="text-xs text-muted-foreground/60">{config.weekLabel}</span>
                 {editingTM[liftType] && Number(editingTM[liftType]) !== config.tm && (
                   <button
                     onClick={() => {
@@ -80,7 +80,7 @@ export function SettingsClient({
                         router.refresh()
                       })
                     }}
-                    className="text-xs bg-white/10 rounded px-2 py-0.5"
+                    className="text-xs bg-muted border border-border/50 rounded px-2 py-0.5"
                   >
                     저장
                   </button>
@@ -93,24 +93,24 @@ export function SettingsClient({
 
       {/* 운동 라이브러리 */}
       <section className="space-y-2">
-        <h2 className="text-sm text-white/60 font-medium">운동 라이브러리</h2>
+        <h2 className="text-sm text-muted-foreground font-medium font-medium">운동 라이브러리</h2>
         {grouped.map(({ liftType, exercises: exs }) => (
-          <div key={liftType} className="bg-white/5 rounded-xl p-4 space-y-3">
+          <div key={liftType} className="bg-card border border-border rounded-xl p-4 space-y-3">
             <h3 className="font-bold text-sm">{LIFT_NAMES[liftType]}</h3>
             {exs.map((ex) => (
               <div key={ex.id} className="space-y-1 border-b border-white/5 pb-2 last:border-0">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">
-                    {ex.name} <span className="text-white/30 text-xs">({ex.role})</span>
+                    {ex.name} <span className="text-muted-foreground/60 text-xs">({ex.role})</span>
                   </span>
-                  <span className="text-xs text-white/30">
+                  <span className="text-xs text-muted-foreground/60">
                     {ex.targetSets}×{ex.targetMinReps}-{ex.targetMaxReps}
                   </span>
                 </div>
                 {ex.role !== 'MAIN' && (
                   <div className="flex flex-wrap gap-1 items-center">
                     {ex.availableWeights.map((w) => (
-                      <span key={w} className="bg-white/10 rounded px-1.5 py-0.5 text-xs">
+                      <span key={w} className="bg-muted border border-border/50 rounded px-1.5 py-0.5 text-xs">
                         {w === 0 ? 'BW' : w}
                       </span>
                     ))}
@@ -121,7 +121,7 @@ export function SettingsClient({
                         value={newWeight[ex.id] ?? ''}
                         onChange={(e) => setNewWeight({ ...newWeight, [ex.id]: e.target.value })}
                         placeholder="+"
-                        className="bg-white/10 rounded px-1 py-0.5 w-12 text-xs text-center"
+                        className="bg-muted border border-border/50 rounded px-1 py-0.5 w-12 text-xs text-center"
                       />
                       {newWeight[ex.id] && (
                         <button
@@ -135,7 +135,7 @@ export function SettingsClient({
                               router.refresh()
                             })
                           }}
-                          className="text-xs bg-white/10 rounded px-1 py-0.5"
+                          className="text-xs bg-muted border border-border/50 rounded px-1 py-0.5"
                         >
                           추가
                         </button>

@@ -41,18 +41,18 @@ export default async function HistoryPage() {
 
         return (
           <div key={dateStr} className="space-y-2">
-            <h2 className="text-sm text-white/40">{month}월 {day}일 ({dayName})</h2>
+            <h2 className="text-sm text-muted-foreground/80">{month}월 {day}일 ({dayName})</h2>
             {acts.map((act) => (
-              <div key={act.id} className="bg-white/5 rounded-lg p-3 flex items-start gap-3">
+              <div key={act.id} className="bg-card border border-border rounded-lg p-3 flex items-start gap-3">
                 <span className="text-lg">{ACTIVITY_ICONS[act.type]}</span>
                 <div className="flex-1 min-w-0">
                   {act.liftSession && (
                     <div>
                       <div className="font-medium">{LIFT_NAMES[act.liftSession.liftType]}</div>
                       {act.liftSession.duration && (
-                        <div className="text-xs text-white/40">{act.liftSession.duration}분</div>
+                        <div className="text-xs text-muted-foreground/80">{act.liftSession.duration}분</div>
                       )}
-                      <div className="text-xs text-white/30">
+                      <div className="text-xs text-muted-foreground/60">
                         {act.liftSession.exerciseLogs.length}운동 ·{' '}
                         {act.liftSession.exerciseLogs.reduce((sum, l) => sum + l.sets.length, 0)}세트
                       </div>
@@ -61,7 +61,7 @@ export default async function HistoryPage() {
                   {act.runSession && (
                     <div>
                       <div className="font-medium">{act.runSession.runType} Run</div>
-                      <div className="text-xs text-white/40">
+                      <div className="text-xs text-muted-foreground/80">
                         {act.runSession.distanceKm}km ·{' '}
                         {Math.floor(act.runSession.avgPace / 60)}:{(act.runSession.avgPace % 60).toString().padStart(2, '0')}/km
                       </div>
@@ -70,7 +70,7 @@ export default async function HistoryPage() {
                   {act.sportSession && (
                     <div>
                       <div className="font-medium">{act.sportSession.sportType}</div>
-                      <div className="text-xs text-white/40">
+                      <div className="text-xs text-muted-foreground/80">
                         {act.sportSession.durationMin}분
                         {act.sportSession.rpe ? ` · RPE ${act.sportSession.rpe}` : ''}
                       </div>
@@ -93,7 +93,7 @@ export default async function HistoryPage() {
       })}
 
       {activities.length === 0 && (
-        <p className="text-white/30 text-center py-8">아직 기록이 없습니다</p>
+        <p className="text-muted-foreground/60 text-center py-8">아직 기록이 없습니다</p>
       )}
     </div>
   )
