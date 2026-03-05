@@ -92,16 +92,10 @@ export function CalendarView({ year, month, byDay, today, isCurrentMonth, liftNa
               onClick={() => { setSelectedDay(isSelected ? null : day); setAddingType(null); setEditingId(null) }}
               className={`
                 aspect-square rounded-lg flex flex-col items-center justify-center gap-1
-                transition-all relative
+                transition-all relative bg-card border border-border/50
                 ${isSelected ? 'ring-2 ring-foreground/30 scale-105' : ''}
-                ${!hasActs ? 'bg-card border border-border/50 hover:bg-muted/50' : 'hover:opacity-80'}
+                ${!hasActs ? 'hover:bg-muted/50' : 'hover:opacity-80'}
               `}
-              style={hasActs && primaryType ? {
-                background: `var(--color-${primaryType}-muted)`,
-                borderWidth: 1,
-                borderStyle: 'solid',
-                borderColor: `var(--color-${primaryType}-border)`,
-              } : undefined}
             >
               <span className={`
                 text-[11px] tabular-nums leading-none
@@ -129,8 +123,7 @@ export function CalendarView({ year, month, byDay, today, isCurrentMonth, liftNa
 
       {/* Selected day detail */}
       {selectedDay !== null && (
-        <div className="rounded-2xl shadow-sm p-4 space-y-2"
-          style={{ background: 'var(--color-lift-muted)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--color-lift-border)' }}>
+        <div className="rounded-2xl shadow-sm p-4 space-y-2 bg-card border border-border">
           <div className="text-xs text-muted-foreground font-medium mb-2">
             {month + 1}월 {selectedDay}일
           </div>
@@ -371,9 +364,8 @@ function RunEditForm({
           <button
             key={t}
             onClick={() => setRunType(t)}
-            className={`flex-1 py-1 rounded text-xs font-medium ${
-              runType === t ? 'bg-foreground text-background' : 'bg-card border border-border/50'
-            }`}
+            className={`flex-1 py-1 rounded text-xs font-medium ${runType === t ? 'bg-foreground text-background' : 'bg-card border border-border/50'
+              }`}
           >
             {t}
           </button>
@@ -440,9 +432,8 @@ function SportEditForm({
           <button
             key={t.value}
             onClick={() => setSportType(t.value)}
-            className={`flex-1 py-1 rounded text-xs font-medium ${
-              sportType === t.value ? 'bg-foreground text-background' : 'bg-card border border-border/50'
-            }`}
+            className={`flex-1 py-1 rounded text-xs font-medium ${sportType === t.value ? 'bg-foreground text-background' : 'bg-card border border-border/50'
+              }`}
           >
             {t.label}
           </button>
@@ -464,9 +455,8 @@ function SportEditForm({
           <button
             key={v}
             onClick={() => setRpe(rpe === v ? null : v)}
-            className={`w-7 h-7 rounded-full text-xs ${
-              rpe === v ? 'bg-foreground text-background' : 'bg-card border border-border/50'
-            }`}
+            className={`w-7 h-7 rounded-full text-xs ${rpe === v ? 'bg-foreground text-background' : 'bg-card border border-border/50'
+              }`}
           >
             {v}
           </button>
@@ -508,9 +498,8 @@ function RunAddForm({
           <button
             key={t}
             onClick={() => setRunType(t)}
-            className={`flex-1 py-1 rounded text-xs font-medium ${
-              runType === t ? 'bg-foreground text-background' : 'bg-card border border-border/50'
-            }`}
+            className={`flex-1 py-1 rounded text-xs font-medium ${runType === t ? 'bg-foreground text-background' : 'bg-card border border-border/50'
+              }`}
           >
             {t}
           </button>
@@ -581,9 +570,8 @@ function SportAddForm({
           <button
             key={t.value}
             onClick={() => setSportType(t.value)}
-            className={`flex-1 py-1 rounded text-xs font-medium ${
-              sportType === t.value ? 'bg-foreground text-background' : 'bg-card border border-border/50'
-            }`}
+            className={`flex-1 py-1 rounded text-xs font-medium ${sportType === t.value ? 'bg-foreground text-background' : 'bg-card border border-border/50'
+              }`}
           >
             {t.label}
           </button>
@@ -604,9 +592,8 @@ function SportAddForm({
           <button
             key={v}
             onClick={() => setRpe(rpe === v ? null : v)}
-            className={`w-7 h-7 rounded-full text-xs ${
-              rpe === v ? 'bg-foreground text-background' : 'bg-card border border-border/50'
-            }`}
+            className={`w-7 h-7 rounded-full text-xs ${rpe === v ? 'bg-foreground text-background' : 'bg-card border border-border/50'
+              }`}
           >
             {v}
           </button>
