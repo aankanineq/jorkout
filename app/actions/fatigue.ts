@@ -2,24 +2,22 @@
 
 import { prisma } from '@/lib/prisma'
 import { todayKST } from '@/lib/date'
+import { DEFAULT_LOAD_TABLE } from '@/lib/fatigueDefaults'
 
 type FatigueState = { push: number; pull: number; quad: number; post: number; cardio: number }
 type FatigueZone = keyof FatigueState
 
-// 활동별 부하표
-const LOAD_TABLE: Record<string, FatigueState> = {
-  BENCH:   { push: 3, pull: 2, quad: 0, post: 0, cardio: 0 },
-  SQUAT:   { push: 0, pull: 0, quad: 3, post: 2, cardio: 1 },
-  OHP:     { push: 2, pull: 2, quad: 0, post: 0, cardio: 0 },
-  DEAD:    { push: 0, pull: 0, quad: 2, post: 3, cardio: 1 },
-  EASY:    { push: 0, pull: 0, quad: 1, post: 1, cardio: 2 },
-  QUALITY: { push: 0, pull: 0, quad: 1, post: 1, cardio: 3 },
-  LONG:    { push: 0, pull: 0, quad: 2, post: 1, cardio: 3 },
-  TENNIS:  { push: 2, pull: 1, quad: 1, post: 0, cardio: 2 },
-  SOCCER:  { push: 0, pull: 0, quad: 2, post: 2, cardio: 3 },
-  OTHER:   { push: 1, pull: 1, quad: 1, post: 1, cardio: 2 },
-  REST:    { push: 0, pull: 0, quad: 0, post: 0, cardio: 0 },
+async function getLoadTable(): Promise<Record<string, FatigueState>> {
+  const configs = await prisma.liftConfig.findMany()
+  const table = { ...DEFAULT_LOAD_TABLE }
+  for (const c of configs) {
+    if (c.fatigueLoad) {
+      table[c.liftType] = c.fatigueLoad as FatigueState
+    }
+  }
+  return table
 }
+
 
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v))
@@ -37,17 +35,20 @@ export async function getFatigueState(): Promise<FatigueState> {
   const fourteenDaysAgo = new Date(now)
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
 
-  const activities = await prisma.activity.findMany({
-    where: { date: { gte: fourteenDaysAgo }, isBackfill: false },
-    include: { liftSession: true, runSession: true, sportSession: true },
-    orderBy: { date: 'asc' },
-  })
+  const [activities, loadTable] = await Promise.all([
+    prisma.activity.findMany({
+      where: { date: { gte: fourteenDaysAgo }, isBackfill: false },
+      include: { liftSession: true, runSession: true, sportSession: true },
+      orderBy: { date: 'asc' },
+    }),
+    getLoadTable(),
+  ])
 
   const fatigue: FatigueState = { push: 0, pull: 0, quad: 0, post: 0, cardio: 0 }
 
   for (const act of activities) {
     const key = getActivityKey(act)
-    const load = LOAD_TABLE[key] || LOAD_TABLE.REST
+    const load = loadTable[key] || loadTable.REST
     const daysAgo = Math.floor((now.getTime() - new Date(act.date).getTime()) / (1000 * 60 * 60 * 24))
     const decay = daysAgo // -1 per day
 
@@ -97,7 +98,7 @@ export async function adjustFatigue(zone: string, value: number) {
 }
 
 export async function getRecommendation() {
-  const fatigue = await getFatigueState()
+  const [fatigue, loadTable] = await Promise.all([getFatigueState(), getLoadTable()])
 
   // Last lift type
   const lastLift = await prisma.liftSession.findFirst({
@@ -180,7 +181,7 @@ export async function getRecommendation() {
   // 나머지 리프트 3종을 피로도 기준으로 정렬해서 추가
   const otherLifts = (['BENCH', 'SQUAT', 'OHP', 'DEAD'] as const).filter(t => t !== liftType)
   const liftScores = otherLifts.map(t => {
-    const load = LOAD_TABLE[t]
+    const load = loadTable[t]
     const score = (Object.keys(load) as FatigueZone[]).reduce((sum, z) => sum + load[z] * fatigue[z], 0)
     return { type: 'LIFT' as const, subType: t, score, reason: t }
   })

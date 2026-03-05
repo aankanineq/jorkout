@@ -63,6 +63,8 @@ model Activity {
 model LiftConfig {
   id          String    @id @default(cuid())
   liftType    LiftType  @unique
+  nickname    String?
+  fatigueLoad Json?
   tm          Float
   cycleWeek   CycleWeek
   tmIncrement Float     @default(5)

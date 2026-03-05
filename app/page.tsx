@@ -35,7 +35,8 @@ export default async function Dashboard() {
     getTodayActivities(),
   ])
 
-  const configMap = Object.fromEntries(configs.map((c: { liftType: string, tm: number, weekLabel: string }) => [c.liftType, c]))
+  const configMap: Record<string, (typeof configs)[number]> = Object.fromEntries(configs.map((c) => [c.liftType, c]))
+  const liftName = (lt: string) => (configMap[lt] as { nickname?: string | null })?.nickname || LIFT_NAMES[lt] || lt
   // 진행중인 리프트 세션 찾기
   const inProgressAct = todayActs.find((act: { type: string, liftSession?: { completed: boolean } | null }) =>
     act.type === 'LIFT' && act.liftSession && !act.liftSession.completed
@@ -87,7 +88,7 @@ export default async function Dashboard() {
               style={{ background: c.bg, borderWidth: 1, borderStyle: 'solid', borderColor: c.border }}>
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: c.dot }} />
-                <span className="font-semibold">{LIFT_NAMES[inProgressAct.liftSession.liftType]} Day</span>
+                <span className="font-semibold">{liftName(inProgressAct.liftSession.liftType)} Day</span>
                 <span className="ml-auto text-xs text-muted-foreground">이어서 하기 →</span>
               </div>
             </Link>
@@ -99,7 +100,7 @@ export default async function Dashboard() {
               {completedActs.map((act: { id: string, type: string, liftSession?: { liftType: string } | null, runSession?: { runType: string } | null, sportSession?: { sportType: string } | null }) => {
                 const c = activityColor(act.type)
                 let label = act.type
-                if (act.liftSession) label = `${LIFT_NAMES[act.liftSession.liftType] || act.liftSession.liftType} Day`
+                if (act.liftSession) label = `${liftName(act.liftSession.liftType)} Day`
                 if (act.runSession) label = `${act.runSession.runType} Run`
                 if (act.sportSession) label = act.sportSession.sportType
                 return (
@@ -129,7 +130,7 @@ export default async function Dashboard() {
                     <div className="space-y-5">
                       <div>
                         <h3 className="font-bold text-xl tracking-tight">
-                          {LIFT_NAMES[liftType]} Day
+                          {liftName(liftType)} Day
                         </h3>
                         <p className="text-sm text-muted-foreground mt-1">{rec.primary.reason}</p>
                       </div>
@@ -191,7 +192,7 @@ export default async function Dashboard() {
                     <button className="w-full h-full flex flex-col items-center justify-center rounded-xl p-4 hover:opacity-80 transition-opacity"
                       style={cardStyle}>
                       <span className="text-xs font-bold tracking-wide mb-1" style={{ color: c.dot }}>LIFT</span>
-                      <span className="text-xs text-muted-foreground">{LIFT_NAMES[alt.subType!] || alt.subType}</span>
+                      <span className="text-xs text-muted-foreground">{liftName(alt.subType!)}</span>
                     </button>
                   </form>
                 ) : alt.type === 'RUN' ? (
@@ -233,7 +234,7 @@ export default async function Dashboard() {
                 const d = toKST(act.date)
                 const dayName = DAY_NAMES[d.getDay()]
                 let label: string = act.type
-                if (act.liftSession) label = `${LIFT_NAMES[act.liftSession.liftType] || act.liftSession.liftType}`
+                if (act.liftSession) label = liftName(act.liftSession.liftType)
                 if (act.runSession) label = `${act.runSession.runType} Run`
                 if (act.sportSession) label = act.sportSession.sportType as string
 

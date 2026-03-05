@@ -145,6 +145,28 @@ export async function updateCycleWeek(liftType: LiftType, cycleWeek: CycleWeek) 
   revalidatePath('/history')
 }
 
+export async function updateFatigueLoad(
+  liftType: LiftType,
+  fatigueLoad: { push: number; pull: number; quad: number; post: number; cardio: number },
+) {
+  await prisma.liftConfig.update({
+    where: { liftType },
+    data: { fatigueLoad },
+  })
+  revalidatePath('/')
+  revalidatePath('/settings')
+}
+
+export async function updateNickname(liftType: LiftType, nickname: string) {
+  await prisma.liftConfig.update({
+    where: { liftType },
+    data: { nickname: nickname.trim() || null },
+  })
+  revalidatePath('/')
+  revalidatePath('/settings')
+  revalidatePath('/history')
+}
+
 export async function updateTM(liftType: LiftType, newTM: number) {
   await prisma.liftConfig.update({
     where: { liftType },

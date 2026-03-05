@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { updateTM, syncCycleWeeks } from '@/app/actions/liftConfig'
+import { updateTM, syncCycleWeeks, updateNickname, updateFatigueLoad } from '@/app/actions/liftConfig'
+import { DEFAULT_LOAD_TABLE } from '@/lib/fatigueDefaults'
 import { updateWeightPresets, updateExercise, deleteExercise, createExercise, swapExerciseOrder } from '@/app/actions/exercise'
 import { upsertEquipmentConfig } from '@/app/actions/equipment'
 import { createBodyLog } from '@/app/actions/bodyLog'
@@ -9,9 +10,13 @@ import { useRouter } from 'next/navigation'
 import { EQUIPMENT_LABELS, computeAvailableWeights } from '@/lib/equipment'
 import type { BarbellConfig, DumbbellConfig, CableConfig, BodyweightConfig } from '@/lib/equipment'
 
+type FatigueLoad = { push: number; pull: number; quad: number; post: number; cardio: number }
+
 type Config = {
   id: string
   liftType: string
+  nickname: string | null
+  fatigueLoad: FatigueLoad | null
   tm: number
   cycleWeek: string
   weekLabel: string
@@ -57,6 +62,8 @@ export function SettingsClient({
   const [newWeight, setNewWeight] = useState<Record<string, string>>({})
   const [editingSetsReps, setEditingSetsReps] = useState<Record<string, { sets: string; minReps: string; maxReps: string }>>({})
   const [editingExercise, setEditingExercise] = useState<Record<string, { name: string; equipmentType: string; role: string }>>({})
+  const [editingNickname, setEditingNickname] = useState<Record<string, string>>({})
+  const [editingFatigue, setEditingFatigue] = useState<Record<string, FatigueLoad>>({})
   const [addingTo, setAddingTo] = useState<string | null>(null)
   const [newExercise, setNewExercise] = useState({ name: '', role: 'ACCESSORY', equipmentType: 'DUMBBELL' })
 
@@ -135,7 +142,57 @@ export function SettingsClient({
         {grouped.map(({ liftType, exercises: exs }) => (
           <div key={liftType} className="bg-card border border-border rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm">{LIFT_NAMES[liftType]}</h3>
+              {editingNickname[liftType] !== undefined ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    value={editingNickname[liftType]}
+                    onChange={(e) => setEditingNickname((prev) => ({ ...prev, [liftType]: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        startTransition(async () => {
+                          await updateNickname(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD', editingNickname[liftType])
+                          setEditingNickname((prev) => { const n = { ...prev }; delete n[liftType]; return n })
+                          router.refresh()
+                        })
+                      } else if (e.key === 'Escape') {
+                        setEditingNickname((prev) => { const n = { ...prev }; delete n[liftType]; return n })
+                      }
+                    }}
+                    autoFocus
+                    placeholder={LIFT_NAMES[liftType]}
+                    className="bg-muted border border-border/50 rounded px-2 py-0.5 text-sm font-bold w-32"
+                  />
+                  <button
+                    onClick={() => {
+                      startTransition(async () => {
+                        await updateNickname(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD', editingNickname[liftType])
+                        setEditingNickname((prev) => { const n = { ...prev }; delete n[liftType]; return n })
+                        router.refresh()
+                      })
+                    }}
+                    disabled={isPending}
+                    className="text-xs bg-muted border border-border/50 rounded px-2 py-0.5"
+                  >
+                    저장
+                  </button>
+                  <button
+                    onClick={() => setEditingNickname((prev) => { const n = { ...prev }; delete n[liftType]; return n })}
+                    className="text-xs text-muted-foreground/60"
+                  >
+                    취소
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    const config = configs.find((c) => c.liftType === liftType)
+                    setEditingNickname((prev) => ({ ...prev, [liftType]: config?.nickname ?? '' }))
+                  }}
+                  className="font-bold text-sm hover:text-foreground/80 transition-colors"
+                >
+                  {configs.find((c) => c.liftType === liftType)?.nickname || LIFT_NAMES[liftType]}
+                </button>
+              )}
               <button
                 onClick={() => {
                   setAddingTo(addingTo === liftType ? null : liftType)
@@ -146,6 +203,71 @@ export function SettingsClient({
                 {addingTo === liftType ? '취소' : '+ 추가'}
               </button>
             </div>
+
+            {/* 피로도 배분 */}
+            {(() => {
+              const config = configs.find((c) => c.liftType === liftType)
+              const current = (config?.fatigueLoad ?? DEFAULT_LOAD_TABLE[liftType]) as FatigueLoad
+              const isEditing = editingFatigue[liftType] !== undefined
+              const ZONES = ['push', 'pull', 'quad', 'post', 'cardio'] as const
+              const ZONE_LABELS: Record<string, string> = { push: 'PUSH', pull: 'PULL', quad: 'QUAD', post: 'POST', cardio: 'CARDIO' }
+              return isEditing ? (
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2 border border-border/50">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">피로도 배분</div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {ZONES.map((z) => (
+                      <div key={z} className="flex flex-col items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground/60">{ZONE_LABELS[z]}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="5"
+                          value={editingFatigue[liftType][z]}
+                          onChange={(e) => setEditingFatigue((prev) => ({
+                            ...prev,
+                            [liftType]: { ...prev[liftType], [z]: Math.max(0, Math.min(5, Number(e.target.value) || 0)) },
+                          }))}
+                          className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      onClick={() => {
+                        startTransition(async () => {
+                          await updateFatigueLoad(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD', editingFatigue[liftType])
+                          setEditingFatigue((prev) => { const n = { ...prev }; delete n[liftType]; return n })
+                          router.refresh()
+                        })
+                      }}
+                      disabled={isPending}
+                      className="text-xs bg-muted border border-border/50 rounded px-2 py-0.5"
+                    >
+                      저장
+                    </button>
+                    <button
+                      onClick={() => setEditingFatigue((prev) => { const n = { ...prev }; delete n[liftType]; return n })}
+                      className="text-xs text-muted-foreground/60"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingFatigue((prev) => ({ ...prev, [liftType]: { ...current } }))}
+                  className="flex items-center gap-2 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                >
+                  {ZONES.map((z) => (
+                    <span key={z} className="flex items-center gap-0.5">
+                      <span className="text-[10px]">{ZONE_LABELS[z]}</span>
+                      <span>{current[z]}</span>
+                    </span>
+                  ))}
+                </button>
+              )
+            })()}
 
             {addingTo === liftType && (
               <div className="bg-muted/50 rounded-lg p-3 space-y-2 border border-border/50">

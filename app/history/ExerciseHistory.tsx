@@ -30,14 +30,13 @@ type Props = {
   dead: LiftSession[]
   run: RunSession[]
   configs: Record<string, LiftConfig>
+  liftNames: Record<string, string>
 }
 
-const LIFT_SECTIONS = [
-  { key: 'bench', label: 'Bench' },
-  { key: 'squat', label: 'Squat' },
-  { key: 'ohp', label: 'OHP' },
-  { key: 'dead', label: 'Dead' },
-] as const
+const LIFT_KEYS = ['bench', 'squat', 'ohp', 'dead'] as const
+const DEFAULT_LABELS: Record<string, string> = {
+  bench: 'Bench', squat: 'Squat', ohp: 'OHP', dead: 'Dead',
+}
 
 const PHASE_LABELS = ['5', '3', '1', 'D']
 
@@ -46,7 +45,7 @@ function formatDate(iso: string) {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
-export function ExerciseHistory({ bench, squat, ohp, dead, run, configs }: Props) {
+export function ExerciseHistory({ bench, squat, ohp, dead, run, configs, liftNames }: Props) {
   const [expandedRun, setExpandedRun] = useState(false)
   const [pending, startTransition] = useTransition()
   const router = useRouter()
@@ -72,7 +71,8 @@ export function ExerciseHistory({ bench, squat, ohp, dead, run, configs }: Props
         </div>
 
         <div className="px-5 pb-4 space-y-2">
-          {LIFT_SECTIONS.map(({ key, label }) => {
+          {LIFT_KEYS.map((key) => {
+            const label = liftNames[key.toUpperCase()] || DEFAULT_LABELS[key]
             const sessions = liftMap[key]
             const config = configs[key]
             const chronological = [...sessions].reverse()

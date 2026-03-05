@@ -57,7 +57,16 @@ export async function updateExercise(
 }
 
 export async function deleteExercise(id: string) {
-  await prisma.exercise.delete({ where: { id } })
+  await prisma.$transaction(async (tx) => {
+    // ExerciseSet → ExerciseLog → Exercise 순서로 삭제
+    await tx.exerciseSet.deleteMany({
+      where: { exerciseLog: { exerciseId: id } },
+    })
+    await tx.exerciseLog.deleteMany({
+      where: { exerciseId: id },
+    })
+    await tx.exercise.delete({ where: { id } })
+  })
   revalidatePath('/settings')
 }
 

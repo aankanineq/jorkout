@@ -6,7 +6,7 @@ import { ExerciseHistory } from './ExerciseHistory'
 import { toKST, nowKST } from '@/lib/date'
 import Link from 'next/link'
 
-const LIFT_NAMES: Record<string, string> = {
+const DEFAULT_LIFT_NAMES: Record<string, string> = {
   BENCH: 'Bench', SQUAT: 'Squat', OHP: 'OHP', DEAD: 'Dead',
 }
 
@@ -91,6 +91,9 @@ export default async function HistoryPage({
   ])
 
   const configMap = Object.fromEntries(liftConfigs.map(c => [c.liftType.toLowerCase(), c]))
+  const LIFT_NAMES: Record<string, string> = Object.fromEntries(
+    Object.entries(DEFAULT_LIFT_NAMES).map(([k, v]) => [k, liftConfigs.find(c => c.liftType === k)?.nickname || v])
+  )
 
   function serializeLift(sessions: typeof benchSessions) {
     return (sessions as typeof benchSessions).map(s => ({
@@ -159,6 +162,7 @@ export default async function HistoryPage({
         dead={serializeLift(deadSessions as typeof benchSessions)}
         run={runData}
         configs={configMap}
+        liftNames={LIFT_NAMES}
       />
     </div>
   )

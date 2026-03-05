@@ -38,6 +38,7 @@ type Session = {
 
 type Config = {
   tm: number
+  nickname: string | null
   cycleWeek: string
   weekLabel: string
   mainSets: { weight: number; reps: string | number; percentage: number }[]
@@ -83,7 +84,7 @@ export function SessionRecorder({
       <div className="flex items-center justify-between">
         <Link href="/" className="text-muted-foreground/80">← 홈</Link>
         <h1 className="font-bold">
-          {LIFT_NAMES[session.liftType]} Day · {config.weekLabel}
+          {config.nickname || LIFT_NAMES[session.liftType]} Day · {config.weekLabel}
           {config.isDeload && <span className="text-green-400 text-sm ml-1">Deload</span>}
         </h1>
         <div className="w-6" />
