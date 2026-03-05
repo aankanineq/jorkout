@@ -2,7 +2,6 @@ import { getRecommendation } from './actions/fatigue'
 import { getWeeklyStats, getTodayActivities } from './actions/activity'
 import { startSession, autoCompleteStaleSessions } from './actions/liftSession'
 import { logRest } from './actions/activity'
-import { getRecentBodyLogs, createBodyLog } from './actions/bodyLog'
 import { getAllLiftConfigs } from './actions/liftConfig'
 import Link from 'next/link'
 import { FatigueBar } from './components/FatigueBar'
@@ -20,15 +19,13 @@ export default async function Dashboard() {
   // 전날 이전 미완료 세션 자동 완료
   await autoCompleteStaleSessions()
 
-  const [rec, weekly, bodyLogs, configs, todayActs] = await Promise.all([
+  const [rec, weekly, configs, todayActs] = await Promise.all([
     getRecommendation(),
     getWeeklyStats(),
-    getRecentBodyLogs(7),
     getAllLiftConfigs(),
     getTodayActivities(),
   ])
 
-  const latestBody = bodyLogs[0]
   const configMap = Object.fromEntries(configs.map((c: { liftType: string, tm: number, weekLabel: string }) => [c.liftType, c]))
   // 진행중인 리프트 세션 찾기
   const inProgressAct = todayActs.find((act: { type: string, liftSession?: { completed: boolean } | null }) =>
@@ -227,44 +224,6 @@ export default async function Dashboard() {
         </div>
       </section>
 
-      {/* 체중 */}
-      <section>
-        <h2 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">체중 기록</h2>
-        <div className="bg-card border border-border shadow-sm rounded-2xl p-5">
-          <div className="flex items-end justify-between mb-4">
-            <div>
-              <div className="text-sm text-muted-foreground mb-1">최근 측정</div>
-              {latestBody ? (
-                <div className="text-2xl font-bold tracking-tight">
-                  {latestBody.weight ?? '-'} <span className="text-base font-normal text-muted-foreground">kg</span>
-                  {latestBody.bodyFat && (
-                    <span className="text-base font-normal text-muted-foreground ml-2">
-                      · {latestBody.bodyFat}%
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="text-muted-foreground text-sm">기록 없음</div>
-              )}
-            </div>
-          </div>
-
-          <form action={async (formData: FormData) => {
-            'use server'
-            const weight = formData.get('weight') ? Number(formData.get('weight')) : null
-            const bodyFat = formData.get('bodyFat') ? Number(formData.get('bodyFat')) : null
-            await createBodyLog({ weight, bodyFat })
-          }} className="flex gap-2">
-            <input name="weight" type="number" step="0.1" placeholder="체중(kg)"
-              className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground transition-shadow" />
-            <input name="bodyFat" type="number" step="0.1" placeholder="체지방(%)"
-              className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground transition-shadow" />
-            <button className="bg-foreground text-background font-medium rounded-lg px-4 py-2 text-sm hover:opacity-90 transition-opacity whitespace-nowrap">
-              저장
-            </button>
-          </form>
-        </div>
-      </section>
     </div>
   )
 }

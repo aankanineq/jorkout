@@ -172,8 +172,9 @@ model Race {
 }
 
 model BodyLog {
-  id      String   @id @default(cuid())
-  date    DateTime @unique @db.Date
-  weight  Float?
-  bodyFat Float?
+  id         String   @id @default(cuid())
+  date       DateTime @unique @db.Date
+  weight     Float?
+  bodyFat    Float?
+  muscleMass Float?
 }

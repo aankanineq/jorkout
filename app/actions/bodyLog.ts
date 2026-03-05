@@ -5,25 +5,36 @@ import { revalidatePath } from 'next/cache'
 import { todayKST } from '@/lib/date'
 
 export async function createBodyLog(data: {
+  date?: string | null
   weight?: number | null
   bodyFat?: number | null
+  muscleMass?: number | null
 }) {
-  const today = todayKST()
+  const date = data.date ? new Date(data.date + 'T00:00:00Z') : todayKST()
 
   await prisma.bodyLog.upsert({
-    where: { date: today },
+    where: { date },
     create: {
-      date: today,
+      date,
       weight: data.weight ?? null,
       bodyFat: data.bodyFat ?? null,
+      muscleMass: data.muscleMass ?? null,
     },
     update: {
       weight: data.weight ?? null,
       bodyFat: data.bodyFat ?? null,
+      muscleMass: data.muscleMass ?? null,
     },
   })
 
   revalidatePath('/')
+  revalidatePath('/body')
+}
+
+export async function deleteBodyLog(id: string) {
+  await prisma.bodyLog.delete({ where: { id } })
+  revalidatePath('/')
+  revalidatePath('/body')
 }
 
 export async function getRecentBodyLogs(days: number = 30) {
