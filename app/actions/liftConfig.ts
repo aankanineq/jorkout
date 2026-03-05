@@ -145,6 +145,16 @@ export async function updateCycleWeek(liftType: LiftType, cycleWeek: CycleWeek) 
   revalidatePath('/history')
 }
 
+export async function toggleLiftConfig(liftType: LiftType, enabled: boolean) {
+  await prisma.liftConfig.update({
+    where: { liftType },
+    data: { enabled },
+  })
+  revalidatePath('/')
+  revalidatePath('/settings')
+  revalidatePath('/history')
+}
+
 export async function updateFatigueLoad(
   liftType: LiftType,
   fatigueLoad: { push: number; pull: number; quad: number; post: number; cardio: number },

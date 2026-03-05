@@ -65,6 +65,7 @@ model LiftConfig {
   liftType    LiftType  @unique
   nickname    String?
   fatigueLoad Json?
+  enabled     Boolean   @default(true)
   tm          Float
   cycleWeek   CycleWeek
   tmIncrement Float     @default(5)

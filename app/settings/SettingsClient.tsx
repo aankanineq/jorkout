@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { updateTM, syncCycleWeeks, updateNickname, updateFatigueLoad } from '@/app/actions/liftConfig'
+import { updateTM, syncCycleWeeks, updateNickname, updateFatigueLoad, toggleLiftConfig } from '@/app/actions/liftConfig'
 import { DEFAULT_LOAD_TABLE } from '@/lib/fatigueDefaults'
 import { updateWeightPresets, updateExercise, deleteExercise, createExercise, swapExerciseOrder } from '@/app/actions/exercise'
 import { upsertEquipmentConfig } from '@/app/actions/equipment'
@@ -17,6 +17,7 @@ type Config = {
   liftType: string
   nickname: string | null
   fatigueLoad: FatigueLoad | null
+  enabled: boolean
   tm: number
   cycleWeek: string
   weekLabel: string
@@ -139,8 +140,8 @@ export function SettingsClient({
       {/* 운동 라이브러리 */}
       <section className="space-y-2">
         <h2 className="text-sm text-muted-foreground font-medium">운동 라이브러리</h2>
-        {grouped.map(({ liftType, exercises: exs }) => (
-          <div key={liftType} className="bg-card border border-border rounded-xl p-4 space-y-3">
+        {grouped.map(({ liftType, config: sectionConfig, exercises: exs }) => (
+          <div key={liftType} className={`bg-card border border-border rounded-xl p-4 space-y-3 ${sectionConfig?.enabled === false ? 'opacity-40' : ''}`}>
             <div className="flex items-center justify-between">
               {editingNickname[liftType] !== undefined ? (
                 <div className="flex items-center gap-1">
@@ -193,15 +194,29 @@ export function SettingsClient({
                   {configs.find((c) => c.liftType === liftType)?.nickname || LIFT_NAMES[liftType]}
                 </button>
               )}
-              <button
-                onClick={() => {
-                  setAddingTo(addingTo === liftType ? null : liftType)
-                  setNewExercise({ name: '', role: 'ACCESSORY', equipmentType: 'DUMBBELL' })
-                }}
-                className="text-xs text-muted-foreground/60 hover:text-foreground"
-              >
-                {addingTo === liftType ? '취소' : '+ 추가'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    startTransition(async () => {
+                      await toggleLiftConfig(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD', !(sectionConfig?.enabled ?? true))
+                      router.refresh()
+                    })
+                  }}
+                  disabled={isPending}
+                  className={`w-8 h-4 rounded-full transition-colors relative ${sectionConfig?.enabled !== false ? 'bg-foreground/30' : 'bg-muted-foreground/20'}`}
+                >
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${sectionConfig?.enabled !== false ? 'left-4' : 'left-0.5'}`} />
+                </button>
+                <button
+                  onClick={() => {
+                    setAddingTo(addingTo === liftType ? null : liftType)
+                    setNewExercise({ name: '', role: 'ACCESSORY', equipmentType: 'DUMBBELL' })
+                  }}
+                  className="text-xs text-muted-foreground/60 hover:text-foreground"
+                >
+                  {addingTo === liftType ? '취소' : '+ 추가'}
+                </button>
+              </div>
             </div>
 
             {/* 피로도 배분 */}

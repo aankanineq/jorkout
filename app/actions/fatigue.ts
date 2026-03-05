@@ -98,7 +98,12 @@ export async function adjustFatigue(zone: string, value: number) {
 }
 
 export async function getRecommendation() {
-  const [fatigue, loadTable] = await Promise.all([getFatigueState(), getLoadTable()])
+  const [fatigue, loadTable, enabledConfigs] = await Promise.all([
+    getFatigueState(),
+    getLoadTable(),
+    prisma.liftConfig.findMany({ where: { enabled: true }, select: { liftType: true } }),
+  ])
+  const enabledLifts = enabledConfigs.map(c => c.liftType) as ('BENCH' | 'SQUAT' | 'OHP' | 'DEAD')[]
 
   // Last lift type
   const lastLift = await prisma.liftSession.findFirst({
@@ -137,33 +142,40 @@ export async function getRecommendation() {
     }
   }
 
-  // Lift recommendation
-  const upperFatigue = fatigue.push + fatigue.pull
-  const lowerFatigue = fatigue.quad + fatigue.post
-  let liftType: 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD'
-  let liftReason: string
-
-  if (upperFatigue <= lowerFatigue) {
-    // Upper body more recovered
-    if (lastLift?.liftType === 'BENCH') {
-      liftType = 'OHP'
-    } else if (lastLift?.liftType === 'OHP') {
-      liftType = 'BENCH'
-    } else {
-      liftType = upperFatigue <= 2 ? 'BENCH' : 'OHP'
+  // Lift recommendation — enabled만 대상
+  if (enabledLifts.length === 0) {
+    // 리프트 없으면 런/스포츠만
+    const alternatives: { type: 'LIFT' | 'RUN' | 'SPORT' | 'REST'; subType?: string; reason: string }[] = []
+    let runType: 'EASY' | 'QUALITY' | 'LONG' = 'EASY'
+    if (lastRun) {
+      if (lastRun.runType === 'EASY') runType = 'QUALITY'
+      else if (lastRun.runType === 'QUALITY') runType = 'LONG'
+      else runType = 'EASY'
     }
-    liftReason = '상체 회복 완료'
-  } else {
-    // Lower body more recovered
-    if (lastLift?.liftType === 'SQUAT') {
-      liftType = 'DEAD'
-    } else if (lastLift?.liftType === 'DEAD') {
-      liftType = 'SQUAT'
-    } else {
-      liftType = lowerFatigue <= 2 ? 'SQUAT' : 'DEAD'
+    alternatives.push({ type: 'RUN', subType: runType, reason: `CARDIO ${fatigue.cardio}/6` })
+    alternatives.push({ type: 'SPORT', reason: '스포츠 기록' })
+    alternatives.push({ type: 'REST', reason: '휴식' })
+    return {
+      primary: { type: 'REST' as const, reason: '활성 리프트 없음' },
+      alternatives,
+      fatigue,
     }
-    liftReason = '하체 회복 완료'
   }
+
+  // 피로도 점수로 모든 enabled 리프트 정렬
+  const liftScores = enabledLifts.map(t => {
+    const load = loadTable[t] || loadTable.REST
+    const score = (Object.keys(load) as FatigueZone[]).reduce((sum, z) => sum + load[z] * fatigue[z], 0)
+    return { liftType: t, score }
+  })
+  liftScores.sort((a, b) => a.score - b.score) // 낮을수록 추천 (피로 적은 곳)
+
+  // 마지막으로 한 운동은 후순위로
+  let bestIdx = 0
+  if (lastLift && liftScores.length > 1 && liftScores[0].liftType === lastLift.liftType) {
+    bestIdx = 1
+  }
+  const liftType = liftScores[bestIdx].liftType
 
   // Get cycle info
   const config = await prisma.liftConfig.findUnique({ where: { liftType } })
@@ -172,22 +184,17 @@ export async function getRecommendation() {
   const primary = {
     type: 'LIFT' as const,
     subType: liftType,
-    reason: `${liftReason} · ${liftType} ${weekLabel} week`,
+    reason: `피로 최소 · ${weekLabel} week`,
   }
 
   // Alternatives
   const alternatives: { type: 'LIFT' | 'RUN' | 'SPORT' | 'REST'; subType?: string; reason: string }[] = []
 
-  // 나머지 리프트 3종을 피로도 기준으로 정렬해서 추가
-  const otherLifts = (['BENCH', 'SQUAT', 'OHP', 'DEAD'] as const).filter(t => t !== liftType)
-  const liftScores = otherLifts.map(t => {
-    const load = loadTable[t]
-    const score = (Object.keys(load) as FatigueZone[]).reduce((sum, z) => sum + load[z] * fatigue[z], 0)
-    return { type: 'LIFT' as const, subType: t, score, reason: t }
-  })
-  liftScores.sort((a, b) => a.score - b.score) // 낮을수록 추천
+  // 나머지 enabled 리프트
   for (const ls of liftScores) {
-    alternatives.push(ls)
+    if (ls.liftType !== liftType) {
+      alternatives.push({ type: 'LIFT' as const, subType: ls.liftType, reason: ls.liftType })
+    }
   }
 
   // Run
