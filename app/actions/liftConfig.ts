@@ -118,6 +118,33 @@ export async function advanceCycle(liftType: LiftType) {
   revalidatePath('/')
 }
 
+export async function revertCycle(liftType: LiftType) {
+  const config = await prisma.liftConfig.findUniqueOrThrow({
+    where: { liftType },
+  })
+
+  const order: CycleWeek[] = ['FIVE', 'THREE', 'ONE', 'DELOAD']
+  const idx = order.indexOf(config.cycleWeek)
+  const prevIdx = (idx - 1 + order.length) % order.length
+
+  await prisma.liftConfig.update({
+    where: { liftType },
+    data: { cycleWeek: order[prevIdx] },
+  })
+
+  revalidatePath('/')
+}
+
+export async function updateCycleWeek(liftType: LiftType, cycleWeek: CycleWeek) {
+  await prisma.liftConfig.update({
+    where: { liftType },
+    data: { cycleWeek },
+  })
+  revalidatePath('/')
+  revalidatePath('/settings')
+  revalidatePath('/history')
+}
+
 export async function updateTM(liftType: LiftType, newTM: number) {
   await prisma.liftConfig.update({
     where: { liftType },

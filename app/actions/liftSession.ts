@@ -4,20 +4,36 @@ import { prisma } from '@/lib/prisma'
 import { LiftType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { advanceCycle } from './liftConfig'
+import { advanceCycle, revertCycle } from './liftConfig'
 import { todayKST, tomorrowKST } from '@/lib/date'
 
 // 전날 이전의 미완료 리프트 세션을 자동 완료 처리
 export async function autoCompleteStaleSessions() {
   const today = todayKST()
 
-  await prisma.liftSession.updateMany({
+  const staleSessions = await prisma.liftSession.findMany({
     where: {
       completed: false,
       date: { lt: today },
     },
+    select: { id: true, liftType: true },
+  })
+
+  if (staleSessions.length === 0) return
+
+  await prisma.liftSession.updateMany({
+    where: { id: { in: staleSessions.map((s) => s.id) } },
     data: { completed: true },
   })
+
+  // 각 세션의 사이클 진행
+  const advancedTypes = new Set<LiftType>()
+  for (const s of staleSessions) {
+    if (!advancedTypes.has(s.liftType)) {
+      await advanceCycle(s.liftType)
+      advancedTypes.add(s.liftType)
+    }
+  }
 }
 
 export async function startSession(liftType: LiftType) {
@@ -61,9 +77,6 @@ export async function startSession(liftType: LiftType) {
     },
     include: { liftSession: true },
   })
-
-  // 사이클 진행
-  await advanceCycle(liftType)
 
   redirect(`/session/${activity.liftSession!.id}`)
 }
@@ -113,10 +126,15 @@ export async function deleteSet(setId: string) {
 }
 
 export async function completeSession(sessionId: string) {
-  await prisma.liftSession.update({
+  const session = await prisma.liftSession.update({
     where: { id: sessionId },
     data: { completed: true },
+    select: { liftType: true },
   })
+
+  // 세션 완료 시 사이클 진행
+  await advanceCycle(session.liftType)
+
   revalidatePath('/')
   redirect('/')
 }
@@ -159,8 +177,16 @@ export async function createPastLiftSession(liftType: LiftType, date: Date) {
 export async function deleteSession(sessionId: string) {
   const session = await prisma.liftSession.findUniqueOrThrow({
     where: { id: sessionId },
+    select: { id: true, activityId: true, liftType: true, completed: true, activity: { select: { isBackfill: true } } },
   })
+
   await prisma.liftSession.delete({ where: { id: sessionId } })
   await prisma.activity.delete({ where: { id: session.activityId } })
+
+  // 완료된 세션 삭제 시 사이클 되돌리기 (backfill 제외)
+  if (session.completed && !session.activity.isBackfill) {
+    await revertCycle(session.liftType)
+  }
+
   revalidatePath('/')
 }

@@ -67,50 +67,57 @@ export function CalendarView({ year, month, byDay, today, isCurrentMonth, liftNa
   return (
     <div className="space-y-3">
       {/* Day headers */}
-      <div className="grid grid-cols-7 text-center text-xs text-muted-foreground font-medium">
+      <div className="grid grid-cols-7 text-center text-[11px] text-muted-foreground font-medium mb-1">
         {DAY_HEADERS.map(d => <div key={d}>{d}</div>)}
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden">
+      <div className="grid grid-cols-7 gap-1.5">
         {cells.map((day, i) => {
           if (day === null) {
-            return <div key={`empty-${i}`} className="bg-card aspect-square" />
+            return <div key={`empty-${i}`} className="aspect-square" />
           }
 
           const acts = byDay[day] || []
           const isToday = isCurrentMonth && day === today
           const isSelected = day === selectedDay
+          const hasActs = acts.length > 0
+
+          // 가장 우선 활동의 색상으로 배경
+          const primaryType = acts[0]?.type?.toLowerCase() as 'lift' | 'run' | 'sport' | 'rest' | undefined
 
           return (
             <button
               key={day}
               onClick={() => { setSelectedDay(isSelected ? null : day); setAddingType(null); setEditingId(null) }}
               className={`
-                bg-card aspect-square flex flex-col items-center justify-center gap-0.5
-                hover:bg-muted/50 transition-colors relative
-                ${isSelected ? 'bg-muted' : ''}
+                aspect-square rounded-lg flex flex-col items-center justify-center gap-1
+                transition-all relative
+                ${isSelected ? 'ring-2 ring-foreground/30 scale-105' : ''}
+                ${!hasActs ? 'bg-card border border-border/50 hover:bg-muted/50' : 'hover:opacity-80'}
               `}
+              style={hasActs && primaryType ? {
+                background: `var(--color-${primaryType}-muted)`,
+                borderWidth: 1,
+                borderStyle: 'solid',
+                borderColor: `var(--color-${primaryType}-border)`,
+              } : undefined}
             >
               <span className={`
-                text-xs tabular-nums leading-none
-                ${isToday ? 'font-bold text-foreground' : 'text-muted-foreground'}
+                text-[11px] tabular-nums leading-none
+                ${isToday ? 'font-black' : hasActs ? 'font-semibold' : 'text-muted-foreground'}
               `}>
                 {day}
               </span>
 
-              {/* Activity dots */}
-              {acts.length > 0 && (
+              {/* Activity blocks */}
+              {hasActs && (
                 <div className="flex gap-0.5">
                   {acts.map((act) => (
                     <div
                       key={act.id}
-                      className={`w-1 h-1 rounded-full ${
-                        act.type === 'LIFT' ? (act.liftSession && !act.liftSession.completed ? 'bg-yellow-500' : 'bg-foreground') :
-                        act.type === 'RUN' ? 'bg-blue-500' :
-                        act.type === 'SPORT' ? 'bg-amber-500' :
-                        'bg-muted-foreground/40'
-                      }`}
+                      className="w-1.5 h-1.5 rounded-sm"
+                      style={{ background: `var(--color-${act.type.toLowerCase()})` }}
                     />
                   ))}
                 </div>
@@ -122,7 +129,8 @@ export function CalendarView({ year, month, byDay, today, isCurrentMonth, liftNa
 
       {/* Selected day detail */}
       {selectedDay !== null && (
-        <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+        <div className="rounded-2xl shadow-sm p-4 space-y-2"
+          style={{ background: 'var(--color-lift-muted)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--color-lift-border)' }}>
           <div className="text-xs text-muted-foreground font-medium mb-2">
             {month + 1}월 {selectedDay}일
           </div>
@@ -132,11 +140,13 @@ export function CalendarView({ year, month, byDay, today, isCurrentMonth, liftNa
           ) : (
             selectedActs.map(act => {
               const isEditing = editingId === act.id
+              const actColor = act.type.toLowerCase()
 
               return (
                 <div key={act.id} className="py-1">
                   <div className="flex items-start gap-3">
-                    <span className="text-xs font-bold tracking-wide text-muted-foreground w-10 shrink-0 pt-0.5">
+                    <span className="text-xs font-bold tracking-wide w-10 shrink-0 pt-0.5"
+                      style={{ color: `var(--color-${actColor})` }}>
                       {ACTIVITY_LABELS[act.type]}
                     </span>
                     <div className="flex-1 min-w-0">
@@ -326,10 +336,10 @@ export function CalendarView({ year, month, byDay, today, isCurrentMonth, liftNa
 
       {/* Legend */}
       <div className="flex gap-4 justify-center text-xs text-muted-foreground">
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-foreground" /> Lift</span>
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Run</span>
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Sport</span>
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" /> Rest</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ background: 'var(--color-lift)' }} /> Lift</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ background: 'var(--color-run)' }} /> Run</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ background: 'var(--color-sport)' }} /> Sport</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ background: 'var(--color-rest)' }} /> Rest</span>
       </div>
     </div>
   )

@@ -40,10 +40,13 @@ export async function updateExercise(
   id: string,
   data: {
     name?: string
+    liftType?: LiftType
+    role?: string
     order?: number
     targetSets?: number
     targetMinReps?: number
     targetMaxReps?: number
+    equipmentType?: string
   },
 ) {
   await prisma.exercise.update({
@@ -55,6 +58,18 @@ export async function updateExercise(
 
 export async function deleteExercise(id: string) {
   await prisma.exercise.delete({ where: { id } })
+  revalidatePath('/settings')
+}
+
+export async function swapExerciseOrder(idA: string, idB: string) {
+  const [a, b] = await Promise.all([
+    prisma.exercise.findUniqueOrThrow({ where: { id: idA }, select: { order: true } }),
+    prisma.exercise.findUniqueOrThrow({ where: { id: idB }, select: { order: true } }),
+  ])
+  await Promise.all([
+    prisma.exercise.update({ where: { id: idA }, data: { order: b.order } }),
+    prisma.exercise.update({ where: { id: idB }, data: { order: a.order } }),
+  ])
   revalidatePath('/settings')
 }
 

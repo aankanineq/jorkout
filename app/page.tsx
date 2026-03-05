@@ -15,6 +15,15 @@ const LIFT_NAMES: Record<string, string> = {
   BENCH: 'Bench', SQUAT: 'Squat', OHP: 'OHP', DEAD: 'Dead',
 }
 
+function activityColor(type: string) {
+  const key = type.toLowerCase()
+  return {
+    bg: `var(--color-${key}-muted)`,
+    border: `var(--color-${key}-border)`,
+    dot: `var(--color-${key})`,
+  }
+}
+
 export default async function Dashboard() {
   // 전날 이전 미완료 세션 자동 완료
   await autoCompleteStaleSessions()
@@ -70,82 +79,96 @@ export default async function Dashboard() {
           {inProgressAct ? '진행중' : todayDone ? '오늘의 운동' : '오늘의 추천'}
         </h2>
 
-        {inProgressAct ? (
-          <Link href={`/session/${inProgressAct.liftSession.id}`}
-            className="block bg-card border border-yellow-500/30 shadow-sm rounded-2xl p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-              <span className="font-semibold">{LIFT_NAMES[inProgressAct.liftSession.liftType]} Day</span>
-              <span className="ml-auto text-xs text-muted-foreground">이어서 하기 →</span>
-            </div>
-          </Link>
-        ) : todayDone ? (
+        {inProgressAct ? (() => {
+          const c = activityColor('LIFT')
+          return (
+            <Link href={`/session/${inProgressAct.liftSession.id}`}
+              className="block shadow-sm rounded-2xl p-5"
+              style={{ background: c.bg, borderWidth: 1, borderStyle: 'solid', borderColor: c.border }}>
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: c.dot }} />
+                <span className="font-semibold">{LIFT_NAMES[inProgressAct.liftSession.liftType]} Day</span>
+                <span className="ml-auto text-xs text-muted-foreground">이어서 하기 →</span>
+              </div>
+            </Link>
+          )
+        })() : todayDone ? (
           <>
             {/* 완료 카드 */}
-            <div className="bg-card border border-border shadow-sm rounded-2xl p-5 mb-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="font-semibold">오늘 운동 완료</span>
-              </div>
-              <div className="text-sm text-muted-foreground space-y-1.5">
-                {completedActs.map((act: { id: string, type: string, liftSession?: { liftType: string } | null, runSession?: { runType: string } | null, sportSession?: { sportType: string } | null }) => {
-                  let label = act.type
-                  if (act.liftSession) label = `${LIFT_NAMES[act.liftSession.liftType] || act.liftSession.liftType} Day`
-                  if (act.runSession) label = `${act.runSession.runType} Run`
-                  if (act.sportSession) label = act.sportSession.sportType
-                  return <div key={act.id}>{ACTIVITY_LABELS[act.type]} — {label}</div>
-                })}
-              </div>
+            <div className="space-y-2 mb-4">
+              {completedActs.map((act: { id: string, type: string, liftSession?: { liftType: string } | null, runSession?: { runType: string } | null, sportSession?: { sportType: string } | null }) => {
+                const c = activityColor(act.type)
+                let label = act.type
+                if (act.liftSession) label = `${LIFT_NAMES[act.liftSession.liftType] || act.liftSession.liftType} Day`
+                if (act.runSession) label = `${act.runSession.runType} Run`
+                if (act.sportSession) label = act.sportSession.sportType
+                return (
+                  <div key={act.id} className="shadow-sm rounded-2xl p-4 flex items-center gap-3"
+                    style={{ background: c.bg, borderWidth: 1, borderStyle: 'solid', borderColor: c.border }}>
+                    <div className="w-2 h-2 rounded-full" style={{ background: c.dot }} />
+                    <span className="text-xs font-bold tracking-wide" style={{ color: c.dot }}>{ACTIVITY_LABELS[act.type]}</span>
+                    <span className="text-sm font-medium">{label}</span>
+                  </div>
+                )
+              })}
             </div>
 
             {/* 추가 운동 */}
             <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">추가 운동</div>
           </>
         ) : (
-          <div className="bg-card border border-border shadow-sm rounded-2xl p-5 mb-4">
-            {rec.primary.type === 'LIFT' && 'subType' in rec.primary ? (() => {
-              const liftType = rec.primary.subType
-              return (
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="font-bold text-xl tracking-tight">
-                      {LIFT_NAMES[liftType]} Day
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">{rec.primary.reason}</p>
-                  </div>
+          (() => {
+            const primaryType = rec.primary.type === 'LIFT' && 'subType' in rec.primary ? 'LIFT' : 'REST'
+            const c = activityColor(primaryType)
+            return (
+              <div className="shadow-sm rounded-2xl p-5 mb-4"
+                style={{ background: c.bg, borderWidth: 1, borderStyle: 'solid', borderColor: c.border }}>
+                {rec.primary.type === 'LIFT' && 'subType' in rec.primary ? (() => {
+                  const liftType = rec.primary.subType
+                  return (
+                    <div className="space-y-5">
+                      <div>
+                        <h3 className="font-bold text-xl tracking-tight">
+                          {LIFT_NAMES[liftType]} Day
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">{rec.primary.reason}</p>
+                      </div>
 
-                  {configMap[liftType] && (
-                    <div className="bg-background border border-border rounded-xl p-3 flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Target Weight</span>
-                      <span className="font-mono font-medium">{configMap[liftType].tm} kg</span>
-                      <span className="text-muted-foreground bg-muted px-2 py-0.5 rounded-md text-xs">{configMap[liftType].weekLabel} week</span>
+                      {configMap[liftType] && (
+                        <div className="bg-background/50 border border-border/50 rounded-xl p-3 flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">Target Weight</span>
+                          <span className="font-mono font-medium">{configMap[liftType].tm} kg</span>
+                          <span className="text-muted-foreground bg-muted px-2 py-0.5 rounded-md text-xs">{configMap[liftType].weekLabel} week</span>
+                        </div>
+                      )}
+
+                      <form action={async () => {
+                        'use server'
+                        await startSession(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD')
+                      }}>
+                        <button className="w-full text-white font-medium py-3.5 rounded-xl hover:opacity-90 transition-all active:scale-[0.98] shadow-sm"
+                          style={{ background: c.dot }}>
+                          운동 시작하기
+                        </button>
+                      </form>
                     </div>
-                  )}
-
-                  <form action={async () => {
-                    'use server'
-                    await startSession(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD')
-                  }}>
-                    <button className="w-full bg-foreground text-background font-medium py-3.5 rounded-xl hover:opacity-90 transition-all active:scale-[0.98] shadow-sm">
-                      운동 시작하기
-                    </button>
-                  </form>
-                </div>
-              )
-            })() : (
-              <div className="space-y-5">
-                <div>
-                  <h3 className="font-bold text-xl tracking-tight">Rest Day</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{rec.primary.reason}</p>
-                </div>
-                <form action={async () => { 'use server'; await logRest() }}>
-                  <button className="w-full bg-muted text-foreground border border-border font-medium py-3.5 rounded-xl hover:bg-muted/80 transition-all active:scale-[0.98]">
-                    휴식 기록하기
-                  </button>
-                </form>
+                  )
+                })() : (
+                  <div className="space-y-5">
+                    <div>
+                      <h3 className="font-bold text-xl tracking-tight">Rest Day</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{rec.primary.reason}</p>
+                    </div>
+                    <form action={async () => { 'use server'; await logRest() }}>
+                      <button className="w-full bg-muted text-foreground border border-border font-medium py-3.5 rounded-xl hover:bg-muted/80 transition-all active:scale-[0.98]">
+                        휴식 기록하기
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            )
+          })()
         )}
 
         {/* 대안 */}
@@ -155,38 +178,46 @@ export default async function Dashboard() {
             if (alt.type === 'REST') return false
             const doneTypes = new Set(completedActs.map((a: { type: string }) => a.type))
             return !doneTypes.has(alt.type)
-          }).map((alt: { type: string; subType?: string }, i: number) => (
-            <div key={i}>
-              {alt.type === 'LIFT' ? (
-                <form action={async () => {
-                  'use server'
-                  await startSession(alt.subType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD')
-                }} className="h-full">
-                  <button className="w-full h-full flex flex-col items-center justify-center bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
-                    <span className="text-xs font-bold tracking-wide text-muted-foreground mb-1">LIFT</span>
-                    <span className="text-xs text-muted-foreground">{LIFT_NAMES[alt.subType!] || alt.subType}</span>
-                  </button>
-                </form>
-              ) : alt.type === 'RUN' ? (
-                <Link href={`/run/log?type=${alt.subType}`}
-                  className="flex flex-col items-center justify-center h-full bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
-                  <span className="text-xs font-bold tracking-wide text-muted-foreground mb-1">RUN</span>
-                  <span className="text-xs text-muted-foreground">{alt.subType}</span>
-                </Link>
-              ) : alt.type === 'SPORT' ? (
-                <Link href="/sport/log"
-                  className="flex flex-col items-center justify-center h-full bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
-                  <span className="text-xs font-bold tracking-wide text-muted-foreground">SPORT</span>
-                </Link>
-              ) : (
-                <form action={async () => { 'use server'; await logRest() }} className="h-full">
-                  <button className="w-full h-full flex flex-col items-center justify-center bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
-                    <span className="text-xs font-bold tracking-wide text-muted-foreground">REST</span>
-                  </button>
-                </form>
-              )}
-            </div>
-          ))}
+          }).map((alt: { type: string; subType?: string }, i: number) => {
+            const c = activityColor(alt.type)
+            const cardStyle = { background: c.bg, borderWidth: 1, borderStyle: 'solid' as const, borderColor: c.border }
+            return (
+              <div key={i}>
+                {alt.type === 'LIFT' ? (
+                  <form action={async () => {
+                    'use server'
+                    await startSession(alt.subType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD')
+                  }} className="h-full">
+                    <button className="w-full h-full flex flex-col items-center justify-center rounded-xl p-4 hover:opacity-80 transition-opacity"
+                      style={cardStyle}>
+                      <span className="text-xs font-bold tracking-wide mb-1" style={{ color: c.dot }}>LIFT</span>
+                      <span className="text-xs text-muted-foreground">{LIFT_NAMES[alt.subType!] || alt.subType}</span>
+                    </button>
+                  </form>
+                ) : alt.type === 'RUN' ? (
+                  <Link href={`/run/log?type=${alt.subType}`}
+                    className="flex flex-col items-center justify-center h-full rounded-xl p-4 hover:opacity-80 transition-opacity"
+                    style={cardStyle}>
+                    <span className="text-xs font-bold tracking-wide mb-1" style={{ color: c.dot }}>RUN</span>
+                    <span className="text-xs text-muted-foreground">{alt.subType}</span>
+                  </Link>
+                ) : alt.type === 'SPORT' ? (
+                  <Link href="/sport/log"
+                    className="flex flex-col items-center justify-center h-full rounded-xl p-4 hover:opacity-80 transition-opacity"
+                    style={cardStyle}>
+                    <span className="text-xs font-bold tracking-wide" style={{ color: c.dot }}>SPORT</span>
+                  </Link>
+                ) : (
+                  <form action={async () => { 'use server'; await logRest() }} className="h-full">
+                    <button className="w-full h-full flex flex-col items-center justify-center rounded-xl p-4 hover:opacity-80 transition-opacity"
+                      style={cardStyle}>
+                      <span className="text-xs font-bold tracking-wide" style={{ color: c.dot }}>REST</span>
+                    </button>
+                  </form>
+                )}
+              </div>
+            )
+          })}
         </div>}
       </section>
 
@@ -206,10 +237,12 @@ export default async function Dashboard() {
                 if (act.runSession) label = `${act.runSession.runType} Run`
                 if (act.sportSession) label = act.sportSession.sportType as string
 
+                const c = activityColor(act.type)
                 return (
                   <div key={act.id} className="flex items-center gap-4 py-3 px-5 hover:bg-muted/50 transition-colors">
                     <span className="text-muted-foreground text-sm font-medium w-6">{dayName}</span>
-                    <span className="text-xs font-bold tracking-wide text-muted-foreground w-10">{ACTIVITY_LABELS[act.type]}</span>
+                    <div className="w-2 h-2 rounded-full" style={{ background: c.dot }} />
+                    <span className="text-xs font-bold tracking-wide w-10" style={{ color: c.dot }}>{ACTIVITY_LABELS[act.type]}</span>
                     <span className="font-medium text-sm flex-1">{label}</span>
                   </div>
                 )

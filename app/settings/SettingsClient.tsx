@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { updateTM } from '@/app/actions/liftConfig'
-import { updateWeightPresets, updateExercise, deleteExercise, createExercise } from '@/app/actions/exercise'
+import { updateTM, updateCycleWeek } from '@/app/actions/liftConfig'
+import { updateWeightPresets, updateExercise, deleteExercise, createExercise, swapExerciseOrder } from '@/app/actions/exercise'
 import { upsertEquipmentConfig } from '@/app/actions/equipment'
 import { createBodyLog } from '@/app/actions/bodyLog'
 import { useRouter } from 'next/navigation'
@@ -41,6 +41,8 @@ const LIFT_ORDER = ['BENCH', 'SQUAT', 'OHP', 'DEAD']
 const LIFT_NAMES: Record<string, string> = {
   BENCH: 'Bench Day', SQUAT: 'Squat Day', OHP: 'OHP Day', DEAD: 'Dead Day',
 }
+const ROLE_OPTIONS = ['MAIN', 'BBB', 'ACCESSORY']
+const EQUIPMENT_OPTIONS = ['BARBELL', 'DUMBBELL', 'CABLE', 'BODYWEIGHT', 'MANUAL']
 
 export function SettingsClient({
   configs, exercises, equipmentConfigs,
@@ -54,6 +56,9 @@ export function SettingsClient({
   const [editingTM, setEditingTM] = useState<Record<string, string>>({})
   const [newWeight, setNewWeight] = useState<Record<string, string>>({})
   const [editingSetsReps, setEditingSetsReps] = useState<Record<string, { sets: string; minReps: string; maxReps: string }>>({})
+  const [editingExercise, setEditingExercise] = useState<Record<string, { name: string; equipmentType: string; role: string }>>({})
+  const [addingTo, setAddingTo] = useState<string | null>(null)
+  const [newExercise, setNewExercise] = useState({ name: '', role: 'ACCESSORY', equipmentType: 'DUMBBELL' })
 
   const grouped = LIFT_ORDER.map((lt) => ({
     liftType: lt,
@@ -82,7 +87,21 @@ export function SettingsClient({
                   className="bg-muted border border-border/50 rounded px-2 py-1 w-20 text-sm text-center"
                 />
                 <span className="text-xs text-muted-foreground/80">kg</span>
-                <span className="text-xs text-muted-foreground/60">{config.weekLabel}</span>
+                <select
+                  value={config.cycleWeek}
+                  onChange={(e) => {
+                    startTransition(async () => {
+                      await updateCycleWeek(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD', e.target.value as 'FIVE' | 'THREE' | 'ONE' | 'DELOAD')
+                      router.refresh()
+                    })
+                  }}
+                  className="bg-muted border border-border/50 rounded px-1.5 py-0.5 text-xs text-muted-foreground"
+                >
+                  <option value="FIVE">5s</option>
+                  <option value="THREE">3s</option>
+                  <option value="ONE">1s</option>
+                  <option value="DELOAD">DEL</option>
+                </select>
                 {editingTM[liftType] && Number(editingTM[liftType]) !== config.tm && (
                   <button
                     onClick={() => {
@@ -111,75 +130,230 @@ export function SettingsClient({
         <h2 className="text-sm text-muted-foreground font-medium">운동 라이브러리</h2>
         {grouped.map(({ liftType, exercises: exs }) => (
           <div key={liftType} className="bg-card border border-border rounded-xl p-4 space-y-3">
-            <h3 className="font-bold text-sm">{LIFT_NAMES[liftType]}</h3>
-            {exs.map((ex) => (
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm">{LIFT_NAMES[liftType]}</h3>
+              <button
+                onClick={() => {
+                  setAddingTo(addingTo === liftType ? null : liftType)
+                  setNewExercise({ name: '', role: 'ACCESSORY', equipmentType: 'DUMBBELL' })
+                }}
+                className="text-xs text-muted-foreground/60 hover:text-foreground"
+              >
+                {addingTo === liftType ? '취소' : '+ 추가'}
+              </button>
+            </div>
+
+            {addingTo === liftType && (
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2 border border-border/50">
+                <input
+                  value={newExercise.name}
+                  onChange={(e) => setNewExercise({ ...newExercise, name: e.target.value })}
+                  placeholder="운동 이름"
+                  className="bg-muted border border-border/50 rounded px-2 py-1 text-sm w-full"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={newExercise.role}
+                    onChange={(e) => setNewExercise({ ...newExercise, role: e.target.value })}
+                    className="bg-muted border border-border/50 rounded px-2 py-1 text-xs flex-1"
+                  >
+                    {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <select
+                    value={newExercise.equipmentType}
+                    onChange={(e) => setNewExercise({ ...newExercise, equipmentType: e.target.value })}
+                    className="bg-muted border border-border/50 rounded px-2 py-1 text-xs flex-1"
+                  >
+                    {EQUIPMENT_OPTIONS.map((eq) => <option key={eq} value={eq}>{EQUIPMENT_LABELS[eq]}</option>)}
+                  </select>
+                </div>
+                <button
+                  disabled={!newExercise.name.trim() || isPending}
+                  onClick={() => {
+                    startTransition(async () => {
+                      await createExercise({
+                        name: newExercise.name.trim(),
+                        liftType: liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD',
+                        role: newExercise.role,
+                        order: exs.length + 1,
+                        targetSets: 3,
+                        targetMinReps: 8,
+                        targetMaxReps: 12,
+                      })
+                      setAddingTo(null)
+                      router.refresh()
+                    })
+                  }}
+                  className="text-xs bg-muted border border-border/50 rounded px-3 py-1 disabled:opacity-40"
+                >
+                  추가
+                </button>
+              </div>
+            )}
+
+            {exs.map((ex, idx) => (
               <div key={ex.id} className="space-y-1 border-b border-white/5 pb-2 last:border-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">
-                    {ex.name} <span className="text-muted-foreground/60 text-xs">({ex.role})</span>
-                  </span>
-                  {editingSetsReps[ex.id] ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        value={editingSetsReps[ex.id].sets}
-                        onChange={(e) => setEditingSetsReps((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], sets: e.target.value } }))}
-                        className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
-                      />
-                      <span className="text-xs text-muted-foreground">×</span>
-                      <input
-                        type="number"
-                        value={editingSetsReps[ex.id].minReps}
-                        onChange={(e) => setEditingSetsReps((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], minReps: e.target.value } }))}
-                        className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
-                      />
-                      <span className="text-xs text-muted-foreground">-</span>
-                      <input
-                        type="number"
-                        value={editingSetsReps[ex.id].maxReps}
-                        onChange={(e) => setEditingSetsReps((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], maxReps: e.target.value } }))}
-                        className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
-                      />
+                {editingExercise[ex.id] ? (
+                  <div className="space-y-2">
+                    <input
+                      value={editingExercise[ex.id].name}
+                      onChange={(e) => setEditingExercise((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], name: e.target.value } }))}
+                      className="bg-muted border border-border/50 rounded px-2 py-1 text-sm w-full"
+                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={editingExercise[ex.id].role}
+                        onChange={(e) => setEditingExercise((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], role: e.target.value } }))}
+                        className="bg-muted border border-border/50 rounded px-2 py-1 text-xs flex-1"
+                      >
+                        {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <select
+                        value={editingExercise[ex.id].equipmentType}
+                        onChange={(e) => setEditingExercise((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], equipmentType: e.target.value } }))}
+                        className="bg-muted border border-border/50 rounded px-2 py-1 text-xs flex-1"
+                      >
+                        {EQUIPMENT_OPTIONS.map((eq) => <option key={eq} value={eq}>{EQUIPMENT_LABELS[eq]}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
                       <button
                         onClick={() => {
-                          const { sets, minReps, maxReps } = editingSetsReps[ex.id]
+                          const { name, equipmentType, role } = editingExercise[ex.id]
                           startTransition(async () => {
-                            await updateExercise(ex.id, {
-                              targetSets: Number(sets),
-                              targetMinReps: Number(minReps),
-                              targetMaxReps: Number(maxReps),
-                            })
-                            setEditingSetsReps((prev) => { const n = { ...prev }; delete n[ex.id]; return n })
+                            await updateExercise(ex.id, { name, equipmentType, role })
+                            setEditingExercise((prev) => { const n = { ...prev }; delete n[ex.id]; return n })
                             router.refresh()
                           })
                         }}
-                        className="text-xs bg-muted border border-border/50 rounded px-1.5 py-0.5"
+                        disabled={isPending}
+                        className="text-xs bg-muted border border-border/50 rounded px-3 py-1"
                       >
                         저장
                       </button>
                       <button
-                        onClick={() => setEditingSetsReps((prev) => { const n = { ...prev }; delete n[ex.id]; return n })}
-                        className="text-xs text-muted-foreground/60 px-1"
+                        onClick={() => setEditingExercise((prev) => { const n = { ...prev }; delete n[ex.id]; return n })}
+                        className="text-xs text-muted-foreground/60"
                       >
-                        ✕
+                        취소
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (!confirm(`"${ex.name}" 삭제?`)) return
+                          startTransition(async () => {
+                            await deleteExercise(ex.id)
+                            setEditingExercise((prev) => { const n = { ...prev }; delete n[ex.id]; return n })
+                            router.refresh()
+                          })
+                        }}
+                        className="text-xs text-red-400/80 ml-auto"
+                      >
+                        삭제
                       </button>
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => setEditingSetsReps((prev) => ({
-                        ...prev,
-                        [ex.id]: { sets: String(ex.targetSets), minReps: String(ex.targetMinReps), maxReps: String(ex.targetMaxReps) },
-                      }))}
-                      className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors"
-                    >
-                      {ex.targetSets}×{ex.targetMinReps}-{ex.targetMaxReps}
-                    </button>
-                  )}
-                </div>
-
-                {/* Equipment type label */}
-                {ex.role !== 'MAIN' && (
-                  <span className="text-xs text-muted-foreground/60">{EQUIPMENT_LABELS[ex.equipmentType] ?? ex.equipmentType}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <div className="flex flex-col">
+                          <button
+                            disabled={idx === 0 || isPending}
+                            onClick={() => {
+                              startTransition(async () => {
+                                await swapExerciseOrder(ex.id, exs[idx - 1].id)
+                                router.refresh()
+                              })
+                            }}
+                            className="text-[10px] text-muted-foreground/40 hover:text-foreground disabled:opacity-20 leading-none"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            disabled={idx === exs.length - 1 || isPending}
+                            onClick={() => {
+                              startTransition(async () => {
+                                await swapExerciseOrder(ex.id, exs[idx + 1].id)
+                                router.refresh()
+                              })
+                            }}
+                            className="text-[10px] text-muted-foreground/40 hover:text-foreground disabled:opacity-20 leading-none"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => setEditingExercise((prev) => ({
+                            ...prev,
+                            [ex.id]: { name: ex.name, equipmentType: ex.equipmentType, role: ex.role },
+                          }))}
+                          className="text-sm text-left hover:text-foreground/80 transition-colors"
+                        >
+                          {ex.name} <span className="text-muted-foreground/60 text-xs">({ex.role})</span>
+                        </button>
+                      </div>
+                      {editingSetsReps[ex.id] ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            value={editingSetsReps[ex.id].sets}
+                            onChange={(e) => setEditingSetsReps((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], sets: e.target.value } }))}
+                            className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
+                          />
+                          <span className="text-xs text-muted-foreground">×</span>
+                          <input
+                            type="number"
+                            value={editingSetsReps[ex.id].minReps}
+                            onChange={(e) => setEditingSetsReps((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], minReps: e.target.value } }))}
+                            className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
+                          />
+                          <span className="text-xs text-muted-foreground">-</span>
+                          <input
+                            type="number"
+                            value={editingSetsReps[ex.id].maxReps}
+                            onChange={(e) => setEditingSetsReps((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], maxReps: e.target.value } }))}
+                            className="bg-muted border border-border/50 rounded px-1 py-0.5 w-10 text-xs text-center"
+                          />
+                          <button
+                            onClick={() => {
+                              const { sets, minReps, maxReps } = editingSetsReps[ex.id]
+                              startTransition(async () => {
+                                await updateExercise(ex.id, {
+                                  targetSets: Number(sets),
+                                  targetMinReps: Number(minReps),
+                                  targetMaxReps: Number(maxReps),
+                                })
+                                setEditingSetsReps((prev) => { const n = { ...prev }; delete n[ex.id]; return n })
+                                router.refresh()
+                              })
+                            }}
+                            className="text-xs bg-muted border border-border/50 rounded px-1.5 py-0.5"
+                          >
+                            저장
+                          </button>
+                          <button
+                            onClick={() => setEditingSetsReps((prev) => { const n = { ...prev }; delete n[ex.id]; return n })}
+                            className="text-xs text-muted-foreground/60 px-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setEditingSetsReps((prev) => ({
+                            ...prev,
+                            [ex.id]: { sets: String(ex.targetSets), minReps: String(ex.targetMinReps), maxReps: String(ex.targetMaxReps) },
+                          }))}
+                          className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors"
+                        >
+                          {ex.targetSets}×{ex.targetMinReps}-{ex.targetMaxReps}
+                        </button>
+                      )}
+                    </div>
+                    {ex.role !== 'MAIN' && (
+                      <span className="text-xs text-muted-foreground/60">{EQUIPMENT_LABELS[ex.equipmentType] ?? ex.equipmentType}</span>
+                    )}
+                  </>
                 )}
               </div>
             ))}

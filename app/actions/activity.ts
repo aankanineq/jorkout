@@ -75,6 +75,17 @@ export async function getTodayActivities() {
 }
 
 export async function deleteActivity(id: string) {
+  const activity = await prisma.activity.findUniqueOrThrow({
+    where: { id },
+    include: { liftSession: true },
+  })
+
+  // 완료된 리프트 세션 삭제 시 사이클 되돌리기 (backfill 제외)
+  if (activity.liftSession?.completed && !activity.isBackfill) {
+    const { revertCycle } = await import('./liftConfig')
+    await revertCycle(activity.liftSession.liftType)
+  }
+
   await prisma.activity.delete({ where: { id } })
   revalidatePath('/')
   revalidatePath('/history')
