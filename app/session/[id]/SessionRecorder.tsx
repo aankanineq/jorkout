@@ -42,6 +42,7 @@ type Config = {
   weekLabel: string
   mainSets: { weight: number; reps: string | number; percentage: number }[]
   bbbWeight: number
+  isDeload?: boolean
 }
 
 const LIFT_NAMES: Record<string, string> = {
@@ -62,7 +63,7 @@ export function SessionRecorder({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  function handleSaveSet(logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number; isWarmup?: boolean }) {
+  function handleSaveSet(logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number; isWarmup?: boolean; isAmrap?: boolean }) {
     startTransition(async () => {
       await saveSet(logId, data)
       router.refresh()
@@ -81,7 +82,10 @@ export function SessionRecorder({
       {/* Header */}
       <div className="flex items-center justify-between">
         <Link href="/" className="text-muted-foreground/80">← 홈</Link>
-        <h1 className="font-bold">{LIFT_NAMES[session.liftType]} Day · {config.weekLabel}</h1>
+        <h1 className="font-bold">
+          {LIFT_NAMES[session.liftType]} Day · {config.weekLabel}
+          {config.isDeload && <span className="text-green-400 text-sm ml-1">Deload</span>}
+        </h1>
         <div className="w-6" />
       </div>
 
@@ -122,14 +126,17 @@ export function SessionRecorder({
                     />
                   )
                 })}
-                {/* BBB 세트 */}
+                {/* BBB 세트 (디로드: 3×5, 일반: 5×10) */}
                 <div className="pt-2 border-t border-white/10">
-                  <div className="text-sm text-muted-foreground mb-2">BBB 5×10 @ {config.bbbWeight}kg</div>
+                  <div className="text-sm text-muted-foreground mb-2">
+                    {config.isDeload ? `BBB 3×5 @ ${config.bbbWeight}kg` : `BBB 5×10 @ ${config.bbbWeight}kg`}
+                  </div>
                   <BBBSets
                     logId={log.id}
                     weight={config.bbbWeight}
                     existingSets={log.sets.filter((s) => s.setNumber > 3)}
                     onSave={handleSaveSet}
+                    deload={config.isDeload}
                   />
                 </div>
               </div>
@@ -170,7 +177,7 @@ function MainSetRow({
   percentage: number
   existingSet?: ExerciseSet
   logId: string
-  onSave: (logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number }) => void
+  onSave: (logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number; isAmrap?: boolean }) => void
   isAmrap: boolean
 }) {
   const baseRep = typeof targetReps === 'string' ? parseInt(targetReps) : targetReps
@@ -180,8 +187,8 @@ function MainSetRow({
   const locked = done && !editing
 
   return (
-    <div className={`flex items-center gap-3 ${locked ? 'opacity-50' : ''}`}>
-      <span className="text-xs text-muted-foreground/60 w-8">Set {setNumber}</span>
+    <div className={`flex items-center gap-3 ${locked ? 'opacity-50' : ''} ${isAmrap && !locked ? 'ring-1 ring-yellow-500/40 rounded-lg p-1 -m-1' : ''}`}>
+      <span className="text-xs text-muted-foreground/60 w-8">{isAmrap ? 'AMRAP' : `Set ${setNumber}`}</span>
       <span className="font-mono text-sm">{targetWeight}kg</span>
       <span className="text-xs text-muted-foreground/80">({percentage}%)</span>
 
@@ -219,6 +226,7 @@ function MainSetRow({
               setNumber,
               weight: targetWeight,
               reps,
+              isAmrap,
             })
             setEditing(false)
           }
@@ -236,15 +244,16 @@ function MainSetRow({
 }
 
 function BBBSetRow({
-  setNumber, weight, existingSet, logId, onSave,
+  setNumber, weight, existingSet, logId, onSave, defaultReps = 10,
 }: {
   setNumber: number
   weight: number
   existingSet?: ExerciseSet
   logId: string
   onSave: (logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number }) => void
+  defaultReps?: number
 }) {
-  const [reps, setReps] = useState(existingSet?.reps ?? 10)
+  const [reps, setReps] = useState(existingSet?.reps ?? defaultReps)
   const done = !!existingSet
   const [editing, setEditing] = useState(false)
   const locked = done && !editing
@@ -296,16 +305,18 @@ function BBBSetRow({
 }
 
 function BBBSets({
-  logId, weight, existingSets, onSave,
+  logId, weight, existingSets, onSave, deload,
 }: {
   logId: string
   weight: number
   existingSets: ExerciseSet[]
   onSave: (logId: string, data: { setId?: string; setNumber: number; weight: number; reps: number }) => void
+  deload?: boolean
 }) {
+  const setCount = deload ? 3 : 5
   return (
     <div className="space-y-2">
-      {[1, 2, 3, 4, 5].map((i) => {
+      {Array.from({ length: setCount }, (_, i) => i + 1).map((i) => {
         const setNum = i + 3
         const existingSet = existingSets.find((s) => s.setNumber === setNum)
         return (
@@ -316,6 +327,7 @@ function BBBSets({
             existingSet={existingSet}
             logId={logId}
             onSave={onSave}
+            defaultReps={deload ? 5 : 10}
           />
         )
       })}

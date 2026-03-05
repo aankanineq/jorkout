@@ -40,6 +40,7 @@ enum CycleWeek {
   FIVE
   THREE
   ONE
+  DELOAD
 }
 
 // ============================================
@@ -47,11 +48,12 @@ enum CycleWeek {
 // ============================================
 
 model Activity {
-  id        String       @id @default(cuid())
-  date      DateTime     @db.Date
-  type      ActivityType
-  notes     String?
-  createdAt DateTime     @default(now())
+  id         String       @id @default(cuid())
+  date       DateTime     @db.Date
+  type       ActivityType
+  notes      String?
+  isBackfill Boolean      @default(false)
+  createdAt  DateTime     @default(now())
 
   liftSession  LiftSession?
   runSession   RunSession?
@@ -75,9 +77,16 @@ model Exercise {
   targetSets       Int
   targetMinReps    Int
   targetMaxReps    Int
+  equipmentType    String   @default("MANUAL") // BARBELL | DUMBBELL | CABLE | BODYWEIGHT | MANUAL
   availableWeights Float[]
 
   exerciseLogs ExerciseLog[]
+}
+
+model EquipmentConfig {
+  id   String @id @default(cuid())
+  type String @unique // BARBELL | DUMBBELL | CABLE
+  data Json
 }
 
 model FatigueOverride {
@@ -120,6 +129,7 @@ model ExerciseSet {
   weight        Float
   reps          Int
   isWarmup      Boolean @default(false)
+  isAmrap       Boolean @default(false)
 
   exerciseLog ExerciseLog @relation(fields: [exerciseLogId], references: [id], onDelete: Cascade)
 }

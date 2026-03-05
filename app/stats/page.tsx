@@ -7,6 +7,7 @@ export default async function StatsPage() {
     getAllLiftConfigs(),
     getRecentBodyLogs(90),
     prisma.runSession.findMany({
+      where: { activity: { isBackfill: false } },
       orderBy: { date: 'desc' },
       take: 100,
     }),
@@ -17,6 +18,7 @@ export default async function StatsPage() {
     where: {
       exerciseLog: {
         exercise: { role: 'MAIN' },
+        liftSession: { activity: { isBackfill: false } },
       },
       setNumber: 3, // 마지막 메인 세트
     },
@@ -58,7 +60,7 @@ export default async function StatsPage() {
               <span className="text-sm">{c.liftType}</span>
               <div className="flex items-center gap-2">
                 <span className="font-mono font-bold">{c.tm}kg</span>
-                <span className="text-xs text-muted-foreground/60">{c.weekLabel}</span>
+                <span className={`text-xs ${c.weekLabel === 'DEL' ? 'text-green-400 font-medium' : 'text-muted-foreground/60'}`}>{c.weekLabel}</span>
               </div>
             </div>
           ))}

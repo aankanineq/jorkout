@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { deleteActivity } from '@/app/actions/activity'
+import { autoCompleteStaleSessions } from '@/app/actions/liftSession'
 import Link from 'next/link'
 import { CalendarView } from './CalendarView'
 import { toKST, nowKST } from '@/lib/date'
@@ -12,9 +13,9 @@ type ActivityWithSessions = {
   id: string
   date: Date
   type: string
-  liftSession?: { liftType: string, completed: boolean, duration: number | null, exerciseLogs: { sets: object[] }[] } | null
-  runSession?: { runType: string, distanceKm: number, avgPace: number } | null
-  sportSession?: { sportType: string, durationMin: number | null, rpe: number | null } | null
+  liftSession?: { id: string, liftType: string, completed: boolean, duration: number | null, exerciseLogs: { sets: object[] }[] } | null
+  runSession?: { id: string, runType: string, distanceKm: number, durationSec: number, avgPace: number } | null
+  sportSession?: { id: string, sportType: string, durationMin: number | null, rpe: number | null } | null
 }
 
 export default async function HistoryPage({
@@ -23,6 +24,8 @@ export default async function HistoryPage({
   searchParams: Promise<{ month?: string }>
 }) {
   const params = await searchParams
+
+  await autoCompleteStaleSessions()
 
   // Parse month from URL or use current
   const now = nowKST()

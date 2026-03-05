@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { todayKST } from '@/lib/date'
 
 export async function createSportSession(data: {
@@ -9,17 +10,19 @@ export async function createSportSession(data: {
   durationMin: number
   rpe?: number
   notes?: string
+  date?: Date
 }) {
-  const today = todayKST()
+  const date = data.date ?? todayKST()
 
   await prisma.activity.create({
     data: {
-      date: today,
+      date,
       type: 'SPORT',
       notes: data.notes || null,
+      isBackfill: !!data.date,
       sportSession: {
         create: {
-          date: today,
+          date,
           sportType: data.sportType as 'TENNIS' | 'SOCCER' | 'OTHER',
           durationMin: data.durationMin,
           rpe: data.rpe ?? null,
@@ -29,7 +32,31 @@ export async function createSportSession(data: {
     },
   })
 
-  redirect('/')
+  if (data.date) {
+    revalidatePath('/history')
+  } else {
+    redirect('/')
+  }
+}
+
+export async function updateSportSession(
+  id: string,
+  data: {
+    sportType: string
+    durationMin: number
+    rpe?: number | null
+  },
+) {
+  await prisma.sportSession.update({
+    where: { id },
+    data: {
+      sportType: data.sportType as 'TENNIS' | 'SOCCER' | 'OTHER',
+      durationMin: data.durationMin,
+      rpe: data.rpe ?? null,
+    },
+  })
+
+  revalidatePath('/history')
 }
 
 export async function deleteSportSession(id: string) {

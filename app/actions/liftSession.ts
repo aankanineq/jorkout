@@ -7,6 +7,19 @@ import { redirect } from 'next/navigation'
 import { advanceCycle } from './liftConfig'
 import { todayKST, tomorrowKST } from '@/lib/date'
 
+// 전날 이전의 미완료 리프트 세션을 자동 완료 처리
+export async function autoCompleteStaleSessions() {
+  const today = todayKST()
+
+  await prisma.liftSession.updateMany({
+    where: {
+      completed: false,
+      date: { lt: today },
+    },
+    data: { completed: true },
+  })
+}
+
 export async function startSession(liftType: LiftType) {
   const today = todayKST()
   const tomorrow = tomorrowKST()
@@ -63,12 +76,13 @@ export async function saveSet(
     weight: number
     reps: number
     isWarmup?: boolean
+    isAmrap?: boolean
   },
 ) {
   if (data.setId) {
     await prisma.exerciseSet.update({
       where: { id: data.setId },
-      data: { weight: data.weight, reps: data.reps, isWarmup: data.isWarmup ?? false },
+      data: { weight: data.weight, reps: data.reps, isWarmup: data.isWarmup ?? false, isAmrap: data.isAmrap ?? false },
     })
   } else {
     await prisma.exerciseSet.create({
@@ -78,6 +92,7 @@ export async function saveSet(
         weight: data.weight,
         reps: data.reps,
         isWarmup: data.isWarmup ?? false,
+        isAmrap: data.isAmrap ?? false,
       },
     })
   }
@@ -104,6 +119,41 @@ export async function completeSession(sessionId: string) {
   })
   revalidatePath('/')
   redirect('/')
+}
+
+// 과거 날짜에 리프트 세션 삽입 (사이클 진행 없음)
+export async function createPastLiftSession(liftType: LiftType, date: Date) {
+  const exercises = await prisma.exercise.findMany({
+    where: { liftType },
+    orderBy: { order: 'asc' },
+  })
+
+  const activity = await prisma.activity.create({
+    data: {
+      date,
+      type: 'LIFT',
+      isBackfill: true,
+      liftSession: {
+        create: {
+          liftType,
+          date,
+          completed: true,
+          exerciseLogs: {
+            create: exercises
+              .filter((ex) => ex.role !== 'BBB')
+              .map((ex, i) => ({
+                exerciseId: ex.id,
+                order: i,
+              })),
+          },
+        },
+      },
+    },
+    include: { liftSession: true },
+  })
+
+  revalidatePath('/history')
+  return activity.liftSession!.id
 }
 
 export async function deleteSession(sessionId: string) {

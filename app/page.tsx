@@ -1,6 +1,6 @@
 import { getRecommendation } from './actions/fatigue'
 import { getWeeklyStats, getTodayActivities } from './actions/activity'
-import { startSession } from './actions/liftSession'
+import { startSession, autoCompleteStaleSessions } from './actions/liftSession'
 import { logRest } from './actions/activity'
 import { getRecentBodyLogs, createBodyLog } from './actions/bodyLog'
 import { getAllLiftConfigs } from './actions/liftConfig'
@@ -17,6 +17,9 @@ const LIFT_NAMES: Record<string, string> = {
 }
 
 export default async function Dashboard() {
+  // 전날 이전 미완료 세션 자동 완료
+  await autoCompleteStaleSessions()
+
   const [rec, weekly, bodyLogs, configs, todayActs] = await Promise.all([
     getRecommendation(),
     getWeeklyStats(),
@@ -127,7 +130,7 @@ export default async function Dashboard() {
                   <h3 className="font-bold text-xl tracking-tight">Rest Day</h3>
                   <p className="text-sm text-muted-foreground mt-1">{rec.primary.reason}</p>
                 </div>
-                <form action={logRest}>
+                <form action={async () => { 'use server'; await logRest() }}>
                   <button className="w-full bg-muted text-foreground border border-border font-medium py-3.5 rounded-xl hover:bg-muted/80 transition-all active:scale-[0.98]">
                     휴식 기록하기
                   </button>
@@ -168,7 +171,7 @@ export default async function Dashboard() {
                   <span className="text-xs font-bold tracking-wide text-muted-foreground">SPORT</span>
                 </Link>
               ) : (
-                <form action={logRest} className="h-full">
+                <form action={async () => { 'use server'; await logRest() }} className="h-full">
                   <button className="w-full h-full flex flex-col items-center justify-center bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
                     <span className="text-xs font-bold tracking-wide text-muted-foreground">REST</span>
                   </button>

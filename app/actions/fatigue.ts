@@ -38,7 +38,7 @@ export async function getFatigueState(): Promise<FatigueState> {
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
 
   const activities = await prisma.activity.findMany({
-    where: { date: { gte: fourteenDaysAgo } },
+    where: { date: { gte: fourteenDaysAgo }, isBackfill: false },
     include: { liftSession: true, runSession: true, sportSession: true },
     orderBy: { date: 'asc' },
   })
@@ -101,12 +101,14 @@ export async function getRecommendation() {
 
   // Last lift type
   const lastLift = await prisma.liftSession.findFirst({
+    where: { activity: { isBackfill: false } },
     orderBy: { date: 'desc' },
     select: { liftType: true },
   })
 
   // Last run type
   const lastRun = await prisma.runSession.findFirst({
+    where: { activity: { isBackfill: false } },
     orderBy: { date: 'desc' },
     select: { runType: true },
   })
@@ -115,7 +117,7 @@ export async function getRecommendation() {
   const threeDaysAgo = new Date()
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
   const recentActivities = await prisma.activity.findMany({
-    where: { date: { gte: threeDaysAgo }, type: { not: 'REST' } },
+    where: { date: { gte: threeDaysAgo }, type: { not: 'REST' }, isBackfill: false },
   })
 
   const allHigh = Object.values(fatigue).every((v) => v >= 4)
@@ -164,7 +166,7 @@ export async function getRecommendation() {
 
   // Get cycle info
   const config = await prisma.liftConfig.findUnique({ where: { liftType } })
-  const weekLabel = config ? { FIVE: '5s', THREE: '3s', ONE: '1s' }[config.cycleWeek] : ''
+  const weekLabel = config ? { FIVE: '5s', THREE: '3s', ONE: '1s', DELOAD: 'DEL' }[config.cycleWeek] : ''
 
   const primary = {
     type: 'LIFT' as const,

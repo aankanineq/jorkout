@@ -2,10 +2,12 @@
 
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { todayKST } from '@/lib/date'
 
 export async function getNextRunType(): Promise<'EASY' | 'QUALITY' | 'LONG'> {
   const last = await prisma.runSession.findFirst({
+    where: { activity: { isBackfill: false } },
     orderBy: { date: 'desc' },
     select: { runType: true },
   })
@@ -22,18 +24,20 @@ export async function createRunSession(data: {
   runType: string
   notes?: string
   raceId?: string
+  date?: Date
 }) {
   const avgPace = Math.round(data.durationSec / data.distanceKm)
-  const today = todayKST()
+  const date = data.date ?? todayKST()
 
   await prisma.activity.create({
     data: {
-      date: today,
+      date,
       type: 'RUN',
       notes: data.notes || null,
+      isBackfill: !!data.date,
       runSession: {
         create: {
-          date: today,
+          date,
           runType: data.runType as 'EASY' | 'QUALITY' | 'LONG',
           distanceKm: data.distanceKm,
           durationSec: data.durationSec,
@@ -44,5 +48,32 @@ export async function createRunSession(data: {
     },
   })
 
-  redirect('/')
+  if (data.date) {
+    revalidatePath('/history')
+  } else {
+    redirect('/')
+  }
+}
+
+export async function updateRunSession(
+  id: string,
+  data: {
+    distanceKm: number
+    durationSec: number
+    runType: string
+  },
+) {
+  const avgPace = Math.round(data.durationSec / data.distanceKm)
+
+  await prisma.runSession.update({
+    where: { id },
+    data: {
+      runType: data.runType as 'EASY' | 'QUALITY' | 'LONG',
+      distanceKm: data.distanceKm,
+      durationSec: data.durationSec,
+      avgPace,
+    },
+  })
+
+  revalidatePath('/history')
 }

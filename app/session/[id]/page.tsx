@@ -31,6 +31,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
         where: {
           exerciseId: log.exerciseId,
           liftSessionId: { not: session.id },
+          liftSession: { activity: { isBackfill: false } },
         },
         include: { sets: { orderBy: { setNumber: 'asc' } } },
         orderBy: { liftSession: { date: 'desc' } },

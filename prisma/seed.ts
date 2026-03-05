@@ -38,6 +38,7 @@ async function main() {
   await prisma.race.deleteMany()
   await prisma.exercise.deleteMany()
   await prisma.liftConfig.deleteMany()
+  await prisma.equipmentConfig.deleteMany()
 
   // ==========================================
   // 2. LiftConfig
@@ -52,30 +53,49 @@ async function main() {
   })
 
   // ==========================================
+  // 2.5 Equipment Configs
+  // ==========================================
+  await prisma.equipmentConfig.createMany({
+    data: [
+      { type: 'BARBELL', data: { barWeight: 20, platesPerSide: [20, 15, 10, 5, 5, 2.5] } },
+      { type: 'DUMBBELL', data: { weights: [3, 5, 6, 8, 10, 12, 13, 15, 18, 20] } },
+      { type: 'CABLE', data: { min: 5, max: 60, step: 5 } },
+      { type: 'BODYWEIGHT', data: { extraWeights: [5, 10, 15, 20] } },
+    ],
+  })
+
+  // Compute available weights from equipment configs
+  const { computeAvailableWeights, DEFAULT_EQUIPMENT_CONFIGS } = await import('../lib/equipment')
+  const barbellWeights = computeAvailableWeights('BARBELL', DEFAULT_EQUIPMENT_CONFIGS)
+  const dumbbellWeights = computeAvailableWeights('DUMBBELL', DEFAULT_EQUIPMENT_CONFIGS)
+  const cableWeights = computeAvailableWeights('CABLE', DEFAULT_EQUIPMENT_CONFIGS)
+  const bwWeights = computeAvailableWeights('BODYWEIGHT', DEFAULT_EQUIPMENT_CONFIGS)
+
+  // ==========================================
   // 3. Exercises (16개)
   // ==========================================
   await prisma.exercise.createMany({
     data: [
       // Bench Day
-      { name: '벤치프레스', liftType: 'BENCH', role: 'MAIN', order: 0, targetSets: 3, targetMinReps: 1, targetMaxReps: 5, availableWeights: [] },
-      { name: '바벨로우', liftType: 'BENCH', role: 'ACCESSORY', order: 2, targetSets: 4, targetMinReps: 8, targetMaxReps: 10, availableWeights: [30, 35, 40, 45, 50, 55, 60] },
-      { name: '인클라인 DB프레스', liftType: 'BENCH', role: 'ACCESSORY', order: 3, targetSets: 3, targetMinReps: 10, targetMaxReps: 12, availableWeights: [14, 16, 18, 20, 22, 24] },
-      { name: '페이스풀', liftType: 'BENCH', role: 'ACCESSORY', order: 4, targetSets: 3, targetMinReps: 15, targetMaxReps: 20, availableWeights: [10, 15, 20, 25] },
+      { name: '벤치프레스', liftType: 'BENCH', role: 'MAIN', order: 0, targetSets: 3, targetMinReps: 1, targetMaxReps: 5, equipmentType: 'BARBELL', availableWeights: [] },
+      { name: '바벨로우', liftType: 'BENCH', role: 'ACCESSORY', order: 2, targetSets: 4, targetMinReps: 8, targetMaxReps: 10, equipmentType: 'BARBELL', availableWeights: barbellWeights },
+      { name: '인클라인 DB프레스', liftType: 'BENCH', role: 'ACCESSORY', order: 3, targetSets: 3, targetMinReps: 10, targetMaxReps: 12, equipmentType: 'DUMBBELL', availableWeights: dumbbellWeights },
+      { name: '페이스풀', liftType: 'BENCH', role: 'ACCESSORY', order: 4, targetSets: 3, targetMinReps: 15, targetMaxReps: 20, equipmentType: 'CABLE', availableWeights: cableWeights },
       // Squat Day
-      { name: '스쿼트', liftType: 'SQUAT', role: 'MAIN', order: 0, targetSets: 3, targetMinReps: 1, targetMaxReps: 5, availableWeights: [] },
-      { name: 'RDL', liftType: 'SQUAT', role: 'ACCESSORY', order: 2, targetSets: 3, targetMinReps: 8, targetMaxReps: 10, availableWeights: [40, 50, 60, 70, 80] },
-      { name: '불가리안 스플릿 스쿼트', liftType: 'SQUAT', role: 'ACCESSORY', order: 3, targetSets: 3, targetMinReps: 8, targetMaxReps: 10, availableWeights: [10, 12, 14, 16, 18, 20] },
-      { name: '카프레이즈', liftType: 'SQUAT', role: 'ACCESSORY', order: 4, targetSets: 3, targetMinReps: 15, targetMaxReps: 20, availableWeights: [20, 30, 40, 50, 60] },
+      { name: '스쿼트', liftType: 'SQUAT', role: 'MAIN', order: 0, targetSets: 3, targetMinReps: 1, targetMaxReps: 5, equipmentType: 'BARBELL', availableWeights: [] },
+      { name: 'RDL', liftType: 'SQUAT', role: 'ACCESSORY', order: 2, targetSets: 3, targetMinReps: 8, targetMaxReps: 10, equipmentType: 'BARBELL', availableWeights: barbellWeights },
+      { name: '불가리안 스플릿 스쿼트', liftType: 'SQUAT', role: 'ACCESSORY', order: 3, targetSets: 3, targetMinReps: 8, targetMaxReps: 10, equipmentType: 'DUMBBELL', availableWeights: dumbbellWeights },
+      { name: '카프레이즈', liftType: 'SQUAT', role: 'ACCESSORY', order: 4, targetSets: 3, targetMinReps: 15, targetMaxReps: 20, equipmentType: 'DUMBBELL', availableWeights: dumbbellWeights },
       // OHP Day
-      { name: 'OHP', liftType: 'OHP', role: 'MAIN', order: 0, targetSets: 3, targetMinReps: 1, targetMaxReps: 5, availableWeights: [] },
-      { name: '풀업', liftType: 'OHP', role: 'ACCESSORY', order: 2, targetSets: 4, targetMinReps: 8, targetMaxReps: 10, availableWeights: [0] },
-      { name: '사이드 레터럴레이즈', liftType: 'OHP', role: 'ACCESSORY', order: 3, targetSets: 3, targetMinReps: 12, targetMaxReps: 15, availableWeights: [5, 7.5, 10, 12.5, 15] },
-      { name: '바이셉 컬', liftType: 'OHP', role: 'ACCESSORY', order: 4, targetSets: 3, targetMinReps: 12, targetMaxReps: 15, availableWeights: [8, 10, 12, 14, 16] },
+      { name: 'OHP', liftType: 'OHP', role: 'MAIN', order: 0, targetSets: 3, targetMinReps: 1, targetMaxReps: 5, equipmentType: 'BARBELL', availableWeights: [] },
+      { name: '풀업', liftType: 'OHP', role: 'ACCESSORY', order: 2, targetSets: 4, targetMinReps: 8, targetMaxReps: 10, equipmentType: 'BODYWEIGHT', availableWeights: bwWeights },
+      { name: '사이드 레터럴레이즈', liftType: 'OHP', role: 'ACCESSORY', order: 3, targetSets: 3, targetMinReps: 12, targetMaxReps: 15, equipmentType: 'DUMBBELL', availableWeights: dumbbellWeights },
+      { name: '바이셉 컬', liftType: 'OHP', role: 'ACCESSORY', order: 4, targetSets: 3, targetMinReps: 12, targetMaxReps: 15, equipmentType: 'DUMBBELL', availableWeights: dumbbellWeights },
       // Dead Day
-      { name: '데드리프트', liftType: 'DEAD', role: 'MAIN', order: 0, targetSets: 3, targetMinReps: 1, targetMaxReps: 5, availableWeights: [] },
-      { name: '불가리안 스플릿 스쿼트 (데드)', liftType: 'DEAD', role: 'ACCESSORY', order: 2, targetSets: 3, targetMinReps: 8, targetMaxReps: 10, availableWeights: [10, 12, 14, 16, 18, 20] },
-      { name: '레그 컬', liftType: 'DEAD', role: 'ACCESSORY', order: 3, targetSets: 3, targetMinReps: 10, targetMaxReps: 12, availableWeights: [20, 25, 30, 35, 40] },
-      { name: '카프레이즈 (데드)', liftType: 'DEAD', role: 'ACCESSORY', order: 4, targetSets: 3, targetMinReps: 15, targetMaxReps: 20, availableWeights: [20, 30, 40, 50, 60] },
+      { name: '데드리프트', liftType: 'DEAD', role: 'MAIN', order: 0, targetSets: 3, targetMinReps: 1, targetMaxReps: 5, equipmentType: 'BARBELL', availableWeights: [] },
+      { name: '불가리안 스플릿 스쿼트 (데드)', liftType: 'DEAD', role: 'ACCESSORY', order: 2, targetSets: 3, targetMinReps: 8, targetMaxReps: 10, equipmentType: 'DUMBBELL', availableWeights: dumbbellWeights },
+      { name: '레그 컬', liftType: 'DEAD', role: 'ACCESSORY', order: 3, targetSets: 3, targetMinReps: 10, targetMaxReps: 12, equipmentType: 'CABLE', availableWeights: cableWeights },
+      { name: '카프레이즈 (데드)', liftType: 'DEAD', role: 'ACCESSORY', order: 4, targetSets: 3, targetMinReps: 15, targetMaxReps: 20, equipmentType: 'CABLE', availableWeights: cableWeights },
     ],
   })
 

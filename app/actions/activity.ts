@@ -25,7 +25,7 @@ export async function getWeeklyStats(weekStart?: Date) {
   end.setDate(end.getDate() + 7)
 
   const activities = await prisma.activity.findMany({
-    where: { date: { gte: start, lt: end } },
+    where: { date: { gte: start, lt: end }, isBackfill: false },
     include: { liftSession: true, runSession: true, sportSession: true },
     orderBy: { date: 'asc' },
   })
@@ -43,22 +43,24 @@ export async function getWeeklyStats(weekStart?: Date) {
   }
 }
 
-export async function logRest() {
-  const today = todayKST()
-  const tomorrow = tomorrowKST()
+export async function logRest(date?: Date) {
+  const targetDate = date ?? todayKST()
+  const nextDay = new Date(targetDate)
+  nextDay.setDate(nextDay.getDate() + 1)
 
   // 중복 방지
   const existing = await prisma.activity.findFirst({
-    where: { date: { gte: today, lt: tomorrow }, type: 'REST' },
+    where: { date: { gte: targetDate, lt: nextDay }, type: 'REST' },
   })
 
   if (!existing) {
     await prisma.activity.create({
-      data: { date: today, type: 'REST' },
+      data: { date: targetDate, type: 'REST', isBackfill: !!date },
     })
   }
 
   revalidatePath('/')
+  revalidatePath('/history')
 }
 
 export async function getTodayActivities() {
