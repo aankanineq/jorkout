@@ -28,16 +28,16 @@ function calcAmrapTMDelta(amrapReps: number, currentTM: number, tmIncrement: num
 
 // 5/3/1 무게 퍼센트
 const PERCENTAGES: Record<CycleWeek, [number, number, number]> = {
-  FIVE:   [0.65, 0.75, 0.85],
-  THREE:  [0.70, 0.80, 0.90],
-  ONE:    [0.75, 0.85, 0.95],
+  FIVE: [0.65, 0.75, 0.85],
+  THREE: [0.70, 0.80, 0.90],
+  ONE: [0.75, 0.85, 0.95],
   DELOAD: [0.40, 0.50, 0.60],
 }
 
 const REPS: Record<CycleWeek, [number, number, string | number]> = {
-  FIVE:   [5, 5, '5+'],
-  THREE:  [3, 3, '3+'],
-  ONE:    [5, 3, '1+'],
+  FIVE: [5, 5, '5+'],
+  THREE: [3, 3, '3+'],
+  ONE: [5, 3, '1+'],
   DELOAD: [5, 5, 5],
 }
 
@@ -152,4 +152,57 @@ export async function updateTM(liftType: LiftType, newTM: number) {
   })
   revalidatePath('/')
   revalidatePath('/settings')
+}
+
+export async function syncCycleWeeks() {
+  const configs = await prisma.liftConfig.findMany()
+  for (const c of configs) {
+    const lastSession = await prisma.liftSession.findFirst({
+      where: {
+        liftType: c.liftType,
+        completed: true,
+        activity: { isBackfill: false }
+      },
+      orderBy: { date: 'desc' },
+      include: {
+        exerciseLogs: {
+          where: { exercise: { role: 'MAIN' } },
+          include: { sets: { where: { isWarmup: false }, orderBy: { setNumber: 'asc' } } }
+        }
+      }
+    })
+
+    if (!lastSession) continue
+
+    const mainLog = lastSession.exerciseLogs[0]
+    if (!mainLog || mainLog.sets.length < 2) continue
+
+    const r1 = mainLog.sets[0].reps
+    const r2 = mainLog.sets[1].reps
+    const isAmrap = mainLog.sets.some((s) => s.isAmrap)
+
+    let inferredWeek: CycleWeek | null = null
+    if (r1 === 5 && r2 === 3) inferredWeek = 'ONE'
+    else if (r1 === 3 && r2 === 3) inferredWeek = 'THREE'
+    else if (r1 === 5 && r2 === 5) {
+      if (isAmrap) inferredWeek = 'FIVE'
+      else inferredWeek = 'DELOAD'
+    }
+
+    if (inferredWeek) {
+      const NEXT_WEEK: Record<CycleWeek, CycleWeek> = {
+        FIVE: 'THREE', THREE: 'ONE', ONE: 'DELOAD', DELOAD: 'FIVE'
+      }
+      const nextWeek = NEXT_WEEK[inferredWeek]
+      if (c.cycleWeek !== nextWeek) {
+        await prisma.liftConfig.update({
+          where: { liftType: c.liftType },
+          data: { cycleWeek: nextWeek }
+        })
+      }
+    }
+  }
+  revalidatePath('/')
+  revalidatePath('/settings')
+  revalidatePath('/history')
 }

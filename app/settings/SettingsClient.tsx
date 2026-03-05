@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { updateTM, updateCycleWeek } from '@/app/actions/liftConfig'
+import { updateTM, syncCycleWeeks } from '@/app/actions/liftConfig'
 import { updateWeightPresets, updateExercise, deleteExercise, createExercise, swapExerciseOrder } from '@/app/actions/exercise'
 import { upsertEquipmentConfig } from '@/app/actions/equipment'
 import { createBodyLog } from '@/app/actions/bodyLog'
@@ -72,7 +72,23 @@ export function SettingsClient({
 
       {/* TM 설정 */}
       <section className="space-y-2">
-        <h2 className="text-sm text-muted-foreground font-medium">5/3/1 Training Max</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm text-muted-foreground font-medium">5/3/1 Training Max</h2>
+          <button
+            onClick={() => {
+              if (!confirm('최근 완료된 운동 기록을 기반으로 사이클(5s/3s/1s/DEL) 주차를 다시 계산합니다. 진행하시겠습니까?')) return
+              startTransition(async () => {
+                await syncCycleWeeks()
+              })
+            }}
+            disabled={isPending}
+            className="text-xs text-muted-foreground/60 hover:text-foreground flex items-center gap-1 transition-colors disabled:opacity-50"
+            title="최근 운동 기록 반영하기"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+            새로고침
+          </button>
+        </div>
         <div className="bg-card border border-border rounded-xl p-4 space-y-3">
           {grouped.map(({ liftType, config }) => {
             if (!config) return null
@@ -87,21 +103,9 @@ export function SettingsClient({
                   className="bg-muted border border-border/50 rounded px-2 py-1 w-20 text-sm text-center"
                 />
                 <span className="text-xs text-muted-foreground/80">kg</span>
-                <select
-                  value={config.cycleWeek}
-                  onChange={(e) => {
-                    startTransition(async () => {
-                      await updateCycleWeek(liftType as 'BENCH' | 'SQUAT' | 'OHP' | 'DEAD', e.target.value as 'FIVE' | 'THREE' | 'ONE' | 'DELOAD')
-                      router.refresh()
-                    })
-                  }}
-                  className="bg-muted border border-border/50 rounded px-1.5 py-0.5 text-xs text-muted-foreground"
-                >
-                  <option value="FIVE">5s</option>
-                  <option value="THREE">3s</option>
-                  <option value="ONE">1s</option>
-                  <option value="DELOAD">DEL</option>
-                </select>
+                <span className="bg-muted border border-border/50 rounded px-1.5 py-0.5 text-xs text-muted-foreground">
+                  {config.weekLabel}
+                </span>
                 {editingTM[liftType] && Number(editingTM[liftType]) !== config.tm && (
                   <button
                     onClick={() => {
