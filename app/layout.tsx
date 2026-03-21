@@ -1,52 +1,35 @@
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { BottomNav } from "./components/BottomNav";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
+import { Nav } from '@/components/Nav'
 
 export const metadata: Metadata = {
-  title: "Jorkout",
-  description: "운동 계획 & 기록",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Jorkout",
-  },
-};
+  title: 'JO Dashboard',
+  description: '러닝 · 웨이트 기록 대시보드',
+}
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
-  width: "device-width",
+  themeColor: '#0d1117',
+  width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false,
-};
+}
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <main className="pb-16 min-h-screen">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>
+        <Nav />
+        {/* 데스크탑: 상단 nav 높이만큼 패딩, 모바일: 하단 nav 높이만큼 패딩 */}
+        <main className="md:pt-12 pb-14 md:pb-0 min-h-screen">
           {children}
         </main>
-        <BottomNav />
       </body>
     </html>
-  );
+  )
 }

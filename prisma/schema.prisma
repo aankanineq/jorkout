@@ -6,178 +6,34 @@ datasource db {
   provider = "postgresql"
 }
 
-// ============================================
-// Enums
-// ============================================
-
-enum ActivityType {
-  LIFT
-  RUN
-  SPORT
-  REST
-}
-
-enum LiftType {
-  BENCH
-  SQUAT
-  OHP
-  DEAD
-}
-
-enum RunType {
-  EASY
-  QUALITY
-  LONG
-}
-
-enum SportType {
-  TENNIS
-  SOCCER
-  OTHER
-}
-
-enum CycleWeek {
-  FIVE
-  THREE
-  ONE
-  DELOAD
-}
-
-// ============================================
-// Models
-// ============================================
-
-model Activity {
-  id         String       @id @default(cuid())
-  date       DateTime     @db.Date
-  type       ActivityType
-  notes      String?
-  isBackfill Boolean      @default(false)
-  createdAt  DateTime     @default(now())
-
-  liftSession  LiftSession?
-  runSession   RunSession?
-  sportSession SportSession?
-}
-
-model LiftConfig {
-  id          String    @id @default(cuid())
-  liftType    LiftType  @unique
-  nickname    String?
-  fatigueLoad Json?
-  enabled     Boolean   @default(true)
-  tm          Float
-  cycleWeek   CycleWeek
-  tmIncrement Float     @default(5)
-}
-
-model Exercise {
-  id               String   @id @default(cuid())
-  name             String   @unique
-  liftType         LiftType
-  role             String   // MAIN | BBB | ACCESSORY
-  order            Int
-  targetSets       Int
-  targetMinReps    Int
-  targetMaxReps    Int
-  equipmentType    String   @default("MANUAL") // BARBELL | DUMBBELL | CABLE | BODYWEIGHT | MANUAL
-  availableWeights Float[]
-
-  exerciseLogs ExerciseLog[]
-}
-
-model EquipmentConfig {
-  id   String @id @default(cuid())
-  type String @unique // BARBELL | DUMBBELL | CABLE
-  data Json
-}
-
-model FatigueOverride {
-  id        String   @id @default(cuid())
+model Run {
+  id        String   @id @default(uuid())
   date      DateTime @db.Date
-  zone      String   // PUSH | PULL | QUAD | POST | CARDIO
-  value     Int      // 0-6
-  updatedAt DateTime @default(now())
+  km        Float
+  minutes   Int
+  pace      Float?   // minutes / km
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([date, zone])
+  @@index([date])
+  @@map("runs")
 }
 
-model LiftSession {
-  id         String   @id @default(cuid())
-  activityId String   @unique
-  liftType   LiftType
-  date       DateTime @db.Date
-  duration   Int?
-  completed  Boolean  @default(false)
+model Gym {
+  id        String   @id @default(uuid())
+  date      DateTime @db.Date
+  exercise  String
+  sets      Int
+  reps      Int
+  weight    Float
+  volume    Float?   // sets × reps × weight
+  rpe       Float?
+  memo      String?
+  raw       String   // "3x5x80"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  activity     Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  exerciseLogs ExerciseLog[]
-}
-
-model ExerciseLog {
-  id            String @id @default(cuid())
-  liftSessionId String
-  exerciseId    String
-  order         Int
-
-  liftSession LiftSession @relation(fields: [liftSessionId], references: [id], onDelete: Cascade)
-  exercise    Exercise    @relation(fields: [exerciseId], references: [id])
-  sets        ExerciseSet[]
-}
-
-model ExerciseSet {
-  id            String  @id @default(cuid())
-  exerciseLogId String
-  setNumber     Int
-  weight        Float
-  reps          Int
-  isWarmup      Boolean @default(false)
-  isAmrap       Boolean @default(false)
-
-  exerciseLog ExerciseLog @relation(fields: [exerciseLogId], references: [id], onDelete: Cascade)
-}
-
-model RunSession {
-  id         String   @id @default(cuid())
-  activityId String   @unique
-  date       DateTime @db.Date
-  runType    RunType
-  distanceKm Float
-  durationSec Int
-  avgPace    Int
-  raceId     String?
-
-  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-}
-
-model SportSession {
-  id          String    @id @default(cuid())
-  activityId  String    @unique
-  date        DateTime  @db.Date
-  sportType   SportType
-  durationMin Int
-  rpe         Int?
-  notes       String?
-
-  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-}
-
-model Race {
-  id             String   @id @default(cuid())
-  name           String
-  date           DateTime @db.Date
-  distanceKm     Float
-  goalTime       String?
-  actualTime     String?
-  weeklyTargetKm Float?
-  status         String   @default("UPCOMING")
-  createdAt      DateTime @default(now())
-}
-
-model BodyLog {
-  id         String   @id @default(cuid())
-  date       DateTime @unique @db.Date
-  weight     Float?
-  bodyFat    Float?
-  muscleMass Float?
+  @@index([date])
+  @@index([exercise])
+  @@map("gyms")
 }
